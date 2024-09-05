@@ -17,12 +17,11 @@ const typeDefs = gql`
     id: ID!
     user: User!
     title: String!
-    description: String
     videoUrl: String!
     thumbnailUrl: String
     category: String
     tags: [String!]!
-    likes: [User!]!
+    likes: [User!]
     views: Int!
     comments: [Comment!]!
     createdAt: String!
@@ -67,7 +66,7 @@ const typeDefs = gql`
     registerUser(username: String!, email: String!, password: String!): AuthPayload!
     loginUser(email: String!, password: String!): AuthPayload!
     updateUser(id: ID!, username: String, email: String, profilePicture: String): User!
-    uploadVideo(title: String!, description: String, videoFile: Upload!, category: String, tags: [String!]): Video!
+    uploadVideo(title: String!, videoFile: Upload!, category: String, tags: [String!]): Video!
     likeVideo(userId: ID!, videoId: ID!): Video!
     addComment(userId: ID!, videoId: ID!, content: String!): Comment!
     followUser(followerId: ID!, followedId: ID!): User!

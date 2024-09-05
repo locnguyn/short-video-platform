@@ -24,7 +24,7 @@ async function startServer() {
   app.use(morgan('combined'));
   app.use(graphqlUploadExpress());
   app.use(cors({
-    origin: 'http://localhost:3000', // Replace with your client's URL
+    origin: 'http://localhost:3001', 
     credentials: true
   }));
 

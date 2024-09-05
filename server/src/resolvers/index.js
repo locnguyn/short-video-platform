@@ -17,9 +17,20 @@ const s3Client = new S3Client({
 const resolvers = {
     Upload: GraphQLUpload,
     Query: {
-        getUser: async (_, { id }) => {
-            return await models.User.findById(id);
-        },
+        getUser: async (_, { id }, context) => {
+            console.log('getUser called with id:', id);
+            try {
+              const user = await models.User.findById(id);
+              if (!user) {
+                console.log('User not found for id:', id);
+                throw new Error('User not found');
+              }
+              return user;
+            } catch (error) {
+              console.error('Error in getUser:', error);
+              throw error;
+            }
+          },
         getVideo: async (_, { id }) => {
             return await models.Video.findById(id);
         },
@@ -65,7 +76,7 @@ const resolvers = {
                 throw new Error(error.message || "An error occurred during login");
             }
         },
-        uploadVideo: async (_, { title, description, videoFile, category, tags }, context) => {
+        uploadVideo: async (_, { title, videoFile, category, tags }, context) => {
             console.log('Received upload request:', { title, description, category, tags });
             if (!context.user) {
                 throw new Error('You must be logged in to upload a video');
@@ -99,7 +110,6 @@ const resolvers = {
                 const newVideo = new models.Video({
                     user: context.user.id,
                     title,
-                    description,
                     videoUrl: result.Location,
                     category,
                     tags: tags || [],
@@ -135,6 +145,9 @@ const resolvers = {
         comments: async (parent, _) => {
             return await models.Comment.find({ video: parent.id });
         },
+        likes: async (parent, _) => {
+
+        }
     },
 };
 

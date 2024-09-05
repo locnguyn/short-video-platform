@@ -3,8 +3,8 @@ import { useMutation, gql } from '@apollo/client';
 import { useDropzone } from 'react-dropzone';
 
 const UPLOAD_VIDEO = gql`
-  mutation UploadVideo($title: String!, $description: String, $videoFile: Upload!, $category: String, $tags: [String!]) {
-    uploadVideo(title: $title, description: $description, videoFile: $videoFile, category: $category, tags: $tags) {
+  mutation UploadVideo($title: String!, $videoFile: Upload!, $category: String, $tags: [String!]) {
+    uploadVideo(title: $title, videoFile: $videoFile, category: $category, tags: $tags) {
       id
       title
       videoUrl

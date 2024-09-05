@@ -8,6 +8,7 @@ import VideoUpload from './components/upload';
 import VideoPlayer from './components/VideoDetails';
 import { Login, Register } from './components/Auth';
 import { ToggleColorMode } from './contexts/themeProvider';
+import UserProfile from './components/UserProfile';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
               <Route path="/video/:id" element={<VideoPlayer />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/user/:userId" element={<UserProfile />} />
               {/* Add more routes as needed */}
             </Routes>
           </MainLayout>
