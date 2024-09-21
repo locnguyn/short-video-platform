@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, CircularProgress } from '@mui/material';
-import ShortVideoComponent from '../../components/VideoDetails';
-import VideoPlayer from '../../components/VideoPlayer';
+import ShortVideoComponent from '../components/VideoDetails';
+import VideoPlayer from '../components/VideoPlayer';
 
 const HomePage = () => {
     const [videos, setVideos] = useState([]);
@@ -38,9 +38,9 @@ const HomePage = () => {
         return new Promise(resolve => {
             setTimeout(() => {
                 resolve([
-                    { id: page * 3 - 2, title: `Video ${page * 3 - 2}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 2}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/39564c71-bc55-4832-a837-c192413ce42c-1.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240904%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240904T140535Z&X-Amz-Expires=3600&X-Amz-Signature=9a61f86eab87b0a146d4c4549bb8854071e01c9f03c5e64d85e300c3778d4666&X-Amz-SignedHeaders=host&x-id=GetObject" },
-                    { id: page * 3 - 1, title: `Video ${page * 3 - 1}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 1}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/39564c71-bc55-4832-a837-c192413ce42c-1.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240904%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240904T140535Z&X-Amz-Expires=3600&X-Amz-Signature=9a61f86eab87b0a146d4c4549bb8854071e01c9f03c5e64d85e300c3778d4666&X-Amz-SignedHeaders=host&x-id=GetObject" },
-                    { id: page * 3, title: `Video ${page * 3}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/39564c71-bc55-4832-a837-c192413ce42c-1.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240904%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240904T140535Z&X-Amz-Expires=3600&X-Amz-Signature=9a61f86eab87b0a146d4c4549bb8854071e01c9f03c5e64d85e300c3778d4666&X-Amz-SignedHeaders=host&x-id=GetObject" },
+                    { id: page * 3 - 2, title: `Video ${page * 3 - 2}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 2}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/39564c71-bc55-4832-a837-c192413ce42c-1.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101103Z&X-Amz-Expires=3600&X-Amz-Signature=4d6a134a93b8133bb409413bbff18551356a2c77b6611d426d495af2d95b0f79&X-Amz-SignedHeaders=host&x-id=GetObject" },
+                    { id: page * 3 - 1, title: `Video ${page * 3 - 1}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 1}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/01708618-4837-46c5-8b82-ad99d75b357c-videoplayback.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101141Z&X-Amz-Expires=3600&X-Amz-Signature=3a00def2ffbe1b961d2232d78de10fea5911b601fad1841052f7f0b66167ec66&X-Amz-SignedHeaders=host&x-id=GetObject" },
+                    { id: page * 3, title: `Video ${page * 3}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/01708618-4837-46c5-8b82-ad99d75b357c-videoplayback.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101141Z&X-Amz-Expires=3600&X-Amz-Signature=3a00def2ffbe1b961d2232d78de10fea5911b601fad1841052f7f0b66167ec66&X-Amz-SignedHeaders=host&x-id=GetObject" },
                 ]);
             }, 1000);
         });

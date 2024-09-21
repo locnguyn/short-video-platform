@@ -1,124 +1,71 @@
-import React, { useState } from 'react';
-import { gql, useMutation } from '@apollo/client';
+// src/pages/AuthPages.js
+import React from 'react';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Container, Typography, Box, Link, useTheme } from '@mui/material';
+import LoginForm from '../components/forms/LoginForm';
+import RegisterForm from '../components/forms/RegisterForm';
+import { saveToken } from '../utils/tokenUtils';
 
-// GraphQL mutations
-const REGISTER_USER = gql`
-  mutation RegisterUser($username: String!, $email: String!, $password: String!) {
-    registerUser(username: $username, email: $email, password: $password) {
-      token
-      user {
-        id
-        username
-        email
-      }
-    }
-  }
-`;
+export const LoginPage = () => {
+  const theme = useTheme();
+  const navigate = useNavigate();
 
-const LOGIN_USER = gql`
-  mutation LoginUser($email: String!, $password: String!) {
-    loginUser(email: $email, password: $password) {
-      token
-      user {
-        id
-        username
-        email
-      }
-    }
-  }
-`;const saveToken = (token) => {
-    localStorage.setItem('authToken', token);
+  const handleLoginSuccess = (data) => {
+    saveToken(data.token);
+    console.log('Login successful:', data);
+    navigate('/'); // Redirect to home page
   };
-
-  // Hàm để lấy token
-  export const getToken = () => {
-    return localStorage.getItem('authToken');
-  };
-
-  // Hàm để xóa token (sử dụng khi đăng xuất)
-  const removeToken = () => {
-    localStorage.removeItem('authToken');
-  };
-
-// Register Component
-export function Register() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [registerUser, { data, loading, error }] = useMutation(REGISTER_USER);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    registerUser({ variables: { username, email, password } });
-  };
-
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  if (data) return <p>Registration successful! User ID: {data.registerUser.user.id}</p>;
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        required
-      />
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <button type="submit">Register</button>
-    </form>
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <LoginForm onSuccess={handleLoginSuccess} />
+        <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+          Don't have an account?{' '}
+          <Link component={RouterLink} to="/register" color="primary">
+            Sign Up
+          </Link>
+        </Typography>
+      </Box>
+    </Container>
   );
-}
+};
 
-// Login Component
-export function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginUser, { data, loading, error }] = useMutation(LOGIN_USER);
+export const RegisterPage = () => {
+  const theme = useTheme();
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const result = await loginUser({ variables: { email, password } });
-    console.log(result);
-    const token = result.data.loginUser.token;
-    saveToken(token);
+  const handleRegisterSuccess = (data) => {
+    // Handle registration success (e.g., save token to localStorage, update global state)
+    console.log('Registration successful:', data);
+    navigate('/'); // Redirect to home page
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  if (data) return <p>Login successful! User: {data.loginUser.user.username}</p>;
-
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      <button type="submit">Login</button>
-    </form>
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <RegisterForm onSuccess={handleRegisterSuccess} />
+        <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+          Already have an account?{' '}
+          <Link component={RouterLink} to="/login" color="primary">
+            Sign In
+          </Link>
+        </Typography>
+      </Box>
+    </Container>
   );
-}
+};

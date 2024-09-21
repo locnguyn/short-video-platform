@@ -1,34 +1,62 @@
-const cloudStorage = require('../utils/cloudStorage');
-const videoProcessor = require('../utils/videoProcessor');
-const Video = require('../models/Video');
+import { Upload } from "@aws-sdk/lib-storage";
+import models from "../models/index.js";
 
-class VideoService {
-  async uploadVideo({ stream, filename, mimetype, title, description, userId }) {
-    // Tạo tên file duy nhất
-    const uniqueFilename = `${Date.now()}-${filename}`;
+const getVideo = async (id) => {
+  return await models.Video.findById(id);
+}
 
-    // Upload video gốc lên cloud storage
-    const videoUrl = await cloudStorage.uploadFile(stream, uniqueFilename, mimetype);
+const getRecommendedVideos = async (userId) => {
+  // Implement recommendation logic here
+  return await models.Video.find().limit(10);
+}
 
-    // Xử lý video (nén, tạo thumbnail)
-    const { processedVideoUrl, thumbnailUrl } = await videoProcessor.processVideo(videoUrl);
 
-    // Lưu thông tin video vào database
-    const video = new Video({
+
+const uploadVideo = async (_, { title, videoFile, category, tags }, context) => {
+  console.log('Received upload request:', { title, description, category, tags });
+  if (!context.user) {
+    throw new Error('You must be logged in to upload a video');
+  }
+
+  const { createReadStream, filename, mimetype } = await videoFile;
+
+  const uniqueFilename = `${uuidv4()}-${filename}`;
+
+  const stream = createReadStream();
+
+  const upload = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Key: uniqueFilename,
+      Body: stream,
+      ContentType: mimetype,
+    },
+  });
+
+  try {
+    const result = await upload.done();
+    console.log(result);
+
+    const newVideo = new models.Video({
+      user: context.user.id,
       title,
-      description,
-      url: processedVideoUrl,
-      thumbnailUrl,
-      user: userId,
+      videoUrl: result.Location,
+      category,
+      tags: tags || [],
     });
 
-    await video.save();
+    const savedVideo = await newVideo.save();
 
-    // Xóa file gốc nếu cần
-    // await cloudStorage.deleteFile(uniqueFilename);
-
-    return video;
+    return savedVideo;
+  } catch (error) {
+    console.error("Error uploading to S3", error);
+    throw new Error("Failed to upload video");
   }
 }
 
-module.exports = new VideoService();
+export default {
+  getVideo,
+  getRecommendedVideos,
+  uploadVideo
+}

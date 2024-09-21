@@ -1,6 +1,7 @@
 import { ApolloClient, createHttpLink, InMemoryCache } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
-import { getToken } from '../components/Auth';
+import { getToken } from '../utils/tokenUtils.js'
+
 import createUploadLink from 'apollo-upload-client/createUploadLink.mjs';
 
 const httpLink = createUploadLink({

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Box, Typography, IconButton, useMediaQuery } from '@mui/material';
+import { styled, useTheme } from '@mui/material/styles';
 import { Volume2, VolumeX, Play, Pause } from 'lucide-react';
 
 const StyledVideo = styled('video')({
@@ -31,6 +31,11 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
   const [duration, setDuration] = useState(0);
   const [showVolumeControl, setShowVolumeControl] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(16 / 9);
+  const [videoHeight, setVideoHeight] = useState();
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -62,6 +67,11 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
   const handleVideoLoaded = () => {
     setIsVideoLoaded(true);
     setDuration(videoRef.current.duration);
+    if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+      console.log(videoRef.current.videoWidth, videoRef.current.videoHeight);
+      setAspectRatio(videoRef.current.videoWidth / videoRef.current.videoHeight);
+      setVideoHeight(videoRef.current.videoHeight);
+    }
     if (isVisible) {
       attemptAutoplay();
     }
@@ -135,24 +145,26 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
 
   return (
     <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        scrollSnapAlign: 'start',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+        sx={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          scrollSnapAlign: 'start',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
     >
       <Box
         sx={{
-          maxWidth: '30%',
-          height: '90vh',
+          width: isMobile ? '100%' : 'auto',
+          height: isMobile ? 'auto' : videoHeight,
+          maxHeight: '90vh',
           position: 'relative',
-          borderRadius: '12px',
+          borderRadius: isMobile ? 0 : '12px',
           overflow: 'hidden',
+          aspectRatio: aspectRatio,
         }}
         onClick={handleVideoClick}
         onMouseEnter={() => setShowControls(true)}
