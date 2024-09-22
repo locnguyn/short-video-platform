@@ -1,10 +1,10 @@
-// src/components/auth/LoginForm.js
 import React from 'react';
 import { useMutation } from '@apollo/client';
 import { gql } from '@apollo/client';
-import { Button, Typography, useTheme } from '@mui/material';
+import { Button, Divider, Typography, useTheme } from '@mui/material';
 import StyledForm from "../styledComponents/StyledForm.js";
 import StyledTextField from "../styledComponents/StyledTextField.js";
+import OAuth2 from '../OAuth2.js';
 
 const LOGIN_USER = gql`
   mutation LoginUser($email: String!, $password: String!) {
@@ -43,13 +43,13 @@ const LoginForm = ({ onSuccess }) => {
   return (
     <StyledForm onSubmit={handleSubmit}>
       <Typography variant="h4" align="center" gutterBottom>
-        Login
+        Đăng nhập
       </Typography>
       <StyledTextField
         required
         fullWidth
         id="email"
-        label="Email Address"
+        label="Tên đăng nhập hoặc địa chỉ email"
         name="email"
         autoComplete="email"
         autoFocus
@@ -58,7 +58,7 @@ const LoginForm = ({ onSuccess }) => {
         required
         fullWidth
         name="password"
-        label="Password"
+        label="Mật khẩu"
         type="password"
         id="password"
         autoComplete="current-password"
@@ -67,16 +67,19 @@ const LoginForm = ({ onSuccess }) => {
         type="submit"
         fullWidth
         variant="contained"
-        sx={{ mt: 3, mb: 2 }}
+        sx={{ mt: 1, mb: 1 }}
         disabled={loading}
       >
-        Sign In
+        Đăng Nhập
       </Button>
       {error && (
         <Typography color="error" align="center">
           {error.message}
         </Typography>
       )}
+      <Divider sx={{ my: 1 }}>Hoặc</Divider>
+
+      <OAuth2 handleLoginWithOAuth2Succes={onSuccess}/>
     </StyledForm>
   );
 };

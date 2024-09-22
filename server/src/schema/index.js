@@ -39,7 +39,7 @@ const typeDefs = gql`
     id: ID!
     user: User!
     title: String!
-    videoKey: String!
+    videoUrl: String!
     thumbnailUrl: String
     duration: Float!
     category: Category

@@ -1,5 +1,6 @@
 import { Upload } from "@aws-sdk/lib-storage";
 import models from "../models/index.js";
+import uploadService from "./uploadService.js";
 
 const getVideo = async (id) => {
   return await models.Video.findById(id);
@@ -12,47 +13,46 @@ const getRecommendedVideos = async (userId) => {
 
 
 
-const uploadVideo = async (_, { title, videoFile, category, tags }, context) => {
-  console.log('Received upload request:', { title, description, category, tags });
-  if (!context.user) {
-    throw new Error('You must be logged in to upload a video');
-  }
-
-  const { createReadStream, filename, mimetype } = await videoFile;
-
-  const uniqueFilename = `${uuidv4()}-${filename}`;
-
-  const stream = createReadStream();
-
-  const upload = new Upload({
-    client: s3Client,
-    params: {
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
-      Key: uniqueFilename,
-      Body: stream,
-      ContentType: mimetype,
-    },
-  });
-
+const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, tags) => {
+  let uploadedVideoLocation = null;
+  let uploadedThumbnailLocation = null;
   try {
-    const result = await upload.done();
-    console.log(result);
+    const res = await uploadService.uploadToS3( thumbnailFile, 'thumbnail');
+    uploadedThumbnailLocation = res.Location;
+    const result = await uploadService.uploadToS3(videoFile, 'video');
+    uploadedVideoLocation = result.Location;
 
-    const newVideo = new models.Video({
-      user: context.user.id,
+    const video = new models.Video({
+      user: userId,
       title,
-      videoUrl: result.Location,
-      category,
-      tags: tags || [],
+      videoUrl: uploadedVideoLocation,
+      thumbnailUrl: uploadedThumbnailLocation,
+      tags,
+      category
     });
 
-    const savedVideo = await newVideo.save();
+    console.log(video);
 
-    return savedVideo;
+    video.save();
+    return video;
   } catch (error) {
-    console.error("Error uploading to S3", error);
-    throw new Error("Failed to upload video");
-  }
+    if (uploadedVideoLocation) {
+      try {
+        uploadService.deleteFromS3(uploadedVideoLocation);
+      } catch (deleteError) {
+        console.error('Could not delete video from S3', deleteError);
+      };
+    }
+    if (uploadedThumbnailLocation) {
+      try {
+        uploadService.deleteFromS3(uploadedThumbnailLocation);
+      } catch (deleteError) {
+        console.error('Could not delete video from S3', deleteError);
+      };
+    }
+    console.error("Error in upload video:", error);
+    throw new Error(error.message || "An error occurred during upload video");
+  };
 }
 
 export default {

@@ -5,29 +5,49 @@ import videoService from '../services/videoService.js';
 import likeService from '../services/likeService.js';
 import commentService from '../services/commentService.js';
 import followService from '../services/followService.js';
+import categoryService from '../services/categoryService.js';
 
 
 const resolvers = {
     Upload: GraphQLUpload,
     Query: {
         getUser: async (_, { id }, { user }) => {
+            console.log(id)
             return userService.getUser(id, user.id);
         },
         getVideo: async (_, { id }) => {
             return videoService.getVideo(id);
         },
-        getRecommendedVideos: async(_, { userId }) => {
+        getRecommendedVideos: async (_, { userId }) => {
             return videoService.getRecommendedVideos(userId);
         },
+        getCategories: async (_, __, { user, tokenError }) => {
+            if (tokenError) {
+                throw new Error(tokenError);
+            }
+            if (!user) {
+                throw new Error('Không được phép truy cập');
+            }
+            return categoryService.getCategories();
+        }
     },
     Mutation: {
-        registerUser: async (_, {username, email, password, avatarFile}) => {
+        registerUser: async (_, { username, email, password, avatarFile }) => {
             return userService.registerUser(username, email, password, avatarFile);
         },
         loginUser: async (_, { email, password }) => {
             return userService.loginUser(email, password);
         },
-        uploadVideo: videoService.uploadVideo,
+        uploadVideo: async (_, { title, videoFile, thumbnailFile, category, tags }, context) => {
+            console.log(title, category, context)
+            // if (!context.user) {
+            //     throw new Error('You must be logged in to upload a video');
+            // }
+            // if (context.tokenError) {
+            //     throw new Error(tokenError);
+            // }
+            return videoService.uploadVideo(context.user.id, title, videoFile, thumbnailFile, category, tags);
+        },
         likeVideo: likeService.likeVideo,
         unlikeVideo: likeService.unlikeVideo,
         likeComment: likeService.likeComment,
@@ -42,7 +62,7 @@ const resolvers = {
     },
     User: {
         videos: async (parent, _) => {
-            return await models.Video.find({ user: parent.id });
+            return await models.Video.find({ user: parent._id });
         },
     },
     Video: {

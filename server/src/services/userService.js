@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs'
 import uploadService from "./uploadService.js";
 
 const getUser = async (userId, viewerId) => {
-    console.log('getUser called with id:', id);
     try {
         const user = await models.User.findById(userId);
         if (!user) {
@@ -23,7 +22,6 @@ const registerUser = async (username, email, password, profilePicture) => {
     try {
         if (profilePicture) {
             const res = await uploadService.uploadToS3(profilePicture, "avatar");
-            console.log(res);
             uploadedFileLocation = res.Location;
         }
         const hashedPassword = await bcrypt.hash(password, 10);

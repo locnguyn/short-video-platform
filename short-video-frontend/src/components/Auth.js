@@ -1,20 +1,35 @@
-// src/pages/AuthPages.js
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Container, Typography, Box, Link, useTheme } from '@mui/material';
 import LoginForm from '../components/forms/LoginForm';
 import RegisterForm from '../components/forms/RegisterForm';
 import { saveToken } from '../utils/tokenUtils';
+import UserContext from '../contexts/userContext';
 
 export const LoginPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { userDispatcher: dispatchUser, user } = useContext(UserContext);
 
   const handleLoginSuccess = (data) => {
     saveToken(data.token);
     console.log('Login successful:', data);
-    navigate('/'); // Redirect to home page
+    dispatchUser({
+      type: "login",
+      payload: data.user
+    });
+    navigate('/');
   };
+
+  useEffect(() => {
+    if(user){
+      navigate('/');
+    }
+  }, [user, navigate])
+
+  if(user) {
+    return null;
+  }
 
   return (
     <Container component="main" maxWidth="xs">
@@ -28,9 +43,9 @@ export const LoginPage = () => {
       >
         <LoginForm onSuccess={handleLoginSuccess} />
         <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-          Don't have an account?{' '}
+          Chưa có tài khoản?{' '}
           <Link component={RouterLink} to="/register" color="primary">
-            Sign Up
+            Đăng Ký
           </Link>
         </Typography>
       </Box>
@@ -59,10 +74,10 @@ export const RegisterPage = () => {
         }}
       >
         <RegisterForm onSuccess={handleRegisterSuccess} />
-        <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-          Already have an account?{' '}
+        <Typography variant="body2" align="center" sx={{ mt: 2, mb: 8 }}>
+          Đã có tài khoản?{' '}
           <Link component={RouterLink} to="/login" color="primary">
-            Sign In
+            Đăng Nhập
           </Link>
         </Typography>
       </Box>

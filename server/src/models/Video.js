@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 const videoSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
-  videoKey: { type: String, required: true },
+  videoUrl: { type: String, required: true },
   thumbnailUrl: String,
-  duration: { type: Number, required: true},
+  duration: { type: Number},
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   tags: [String],
   likeCount: { type: Number, default: 0 },

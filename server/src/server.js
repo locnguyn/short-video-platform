@@ -12,6 +12,8 @@ import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import { ApolloServerPluginDrainHttpServer } from 'apollo-server-core';
 
 import videoRouter from './Router/videoRouter.js'
+import { verifyToken } from './utils/jwtTokenUtils.js';
+import models from './models/index.js';
 
 dotenv.config();
 
@@ -24,26 +26,35 @@ async function startServer() {
   app.use(morgan('combined'));
   app.use(graphqlUploadExpress());
   app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL,
     credentials: true
   }));
 
   app.use('/api', videoRouter)
+  app.use((err, req, res, next) => {
+    console.error('Express error:', err);
+    res.status(500).send('Something went wrong');
+  });
 
   const server = new ApolloServer({
     typeDefs,
     resolvers,
     context: ({ req }) => {
+      console.log(req.body)
       const token = req.headers.authorization || '';
       let user = null;
-      try {
-        if (token) {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      let tokenError = null;
+
+      if (token) {
+        const { valid, error, decoded } = verifyToken(token);
+        if (valid) {
           user = { id: decoded.userId };
+          console.log(user)
+        } else {
+          tokenError = error;
         }
-      } catch (error) {
-        console.error('Error decoding token:', error);
       }
+
       return { user };
     },
     csrfPrevention: true,
@@ -59,6 +70,29 @@ async function startServer() {
   });
 
   await mongoose.connect(process.env.MONGODB_URI);
+
+  // const categories = [
+  //   { name: "Action", description: "Fast-paced and exciting videos" },
+  //   { name: "Comedy", description: "Humorous and entertaining content" },
+  //   { name: "Education", description: "Informative and instructional videos" },
+  //   { name: "Music", description: "Music videos and performances" },
+  //   { name: "Gaming", description: "Video game playthroughs and reviews" }
+  // ];
+
+  // // Function to insert categories
+  // async function insertCategories() {
+  //   try {
+  //     const result = await models.Category.insertMany(categories);
+  //     console.log(`${result.length} categories inserted successfully`);
+  //   } catch (error) {
+  //     console.error("Error inserting categories:", error);
+  //   } finally {
+  //     mongoose.connection.close();
+  //   }
+  // }
+
+  // // Run the insertion
+  // insertCategories();
 
   const PORT = process.env.PORT || 4000;
   httpServer.listen(PORT, () => {
