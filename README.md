@@ -1,39 +1,37 @@
-<div align="center" id="top"> 
-  <img src="./.github/app.gif" alt="Loc_Portfolio" />
+<div align="center" id="top">
+  <img src="./.github/app.gif" alt="" />
 
   &#xa0;
 
   <!-- <a href="https://loc_portfolio.netlify.app">Demo</a> -->
 </div>
 
-<h1 align="center">Loc_Portfolio</h1>
+<h1 align="center">LocXoc Short Video Platform</h1>
 
 <p align="center">
-  <img alt="Github top language" src="https://img.shields.io/github/languages/top/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8">
+  <img alt="Github top language" src="https://img.shields.io/github/languages/top/locnguyn/short-video-platform?color=56BEB8">
 
-  <img alt="Github language count" src="https://img.shields.io/github/languages/count/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8">
+  <img alt="Github language count" src="https://img.shields.io/github/languages/count/locnguyn/short-video-platform?color=56BEB8">
 
-  <img alt="Repository size" src="https://img.shields.io/github/repo-size/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8">
+  <img alt="Repository size" src="https://img.shields.io/github/repo-size/locnguyn/short-video-platform?color=56BEB8">
 
-  <img alt="License" src="https://img.shields.io/github/license/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8">
+  <!-- <img alt="Github issues" src="https://img.shields.io/github/issues/locnguyn/short-video-platform?color=56BEB8" /> -->
 
-  <!-- <img alt="Github issues" src="https://img.shields.io/github/issues/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8" /> -->
+  <img alt="Github forks" src="https://img.shields.io/github/forks/locnguyn/short-video-platform?color=56BEB8" />
 
-  <!-- <img alt="Github forks" src="https://img.shields.io/github/forks/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8" /> -->
-
-  <!-- <img alt="Github stars" src="https://img.shields.io/github/stars/{{YOUR_GITHUB_USERNAME}}/loc_portfolio?color=56BEB8" /> -->
+  <img alt="Github stars" src="https://img.shields.io/github/stars/locnguyn/short-video-platform?color=56BEB8" />
 </p>
 
 <!-- Status -->
 
-<!-- <h4 align="center"> 
+<!-- <h4 align="center">
 	🚧  Loc_Portfolio 🚀 Under construction...  🚧
-</h4> 
+</h4>
 
 <hr> -->
 
 <p align="center">
-  <a href="#dart-about">About</a> &#xa0; | &#xa0; 
+  <a href="#dart-about">About</a> &#xa0; | &#xa0;
   <a href="#sparkles-features">Features</a> &#xa0; | &#xa0;
   <a href="#rocket-technologies">Technologies</a> &#xa0; | &#xa0;
   <a href="#white_check_mark-requirements">Requirements</a> &#xa0; | &#xa0;
@@ -46,23 +44,21 @@
 
 ## :dart: About ##
 
-Describe your project
+A short video platform allows you to browse video, upload video, interact with video and users
 
 ## :sparkles: Features ##
 
-:heavy_check_mark: Feature 1;\
-:heavy_check_mark: Feature 2;\
-:heavy_check_mark: Feature 3;
+:heavy_check_mark: Upload video;\
+:heavy_check_mark: Browse video;\
+:heavy_check_mark: Interact with video;
 
 ## :rocket: Technologies ##
 
 The following tools were used in this project:
 
-- [Expo](https://expo.io/)
 - [Node.js](https://nodejs.org/en/)
 - [React](https://pt-br.reactjs.org/)
-- [React Native](https://reactnative.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
+- [GraphQL](https://graphql.org/learn/)
 
 ## :white_check_mark: Requirements ##
 
@@ -72,26 +68,34 @@ Before starting :checkered_flag:, you need to have [Git](https://git-scm.com) an
 
 ```bash
 # Clone this project
-$ git clone https://github.com/{{YOUR_GITHUB_USERNAME}}/loc_portfolio
+$ git clone https://github.com/locnguyn/short-video-platform
 
-# Access
-$ cd loc_portfolio
+# Frontend
+$ cd short-video-platform
 
-# Install dependencies
-$ yarn
+$ cd short-video-frontend
 
-# Run the project
-$ yarn start
+$ npm install
 
-# The server will initialize in the <http://localhost:3000>
+$ npm start
+
+# Backend at new terminal
+$ cd short-video-platform
+
+$ cd server
+
+$ npm install
+
+$ npm start
+
+# The frontend will initialize in the <http://localhost:3000>
+# The backend will initialize in the <http://localhost:4000/graphql>
 ```
 
 ## :memo: License ##
 
-This project is under license from MIT. For more details, see the [LICENSE](LICENSE.md) file.
 
-
-Made with :heart: by <a href="https://github.com/{{YOUR_GITHUB_USERNAME}}" target="_blank">{{YOUR_NAME}}</a>
+Made with :heart: by <a href="https://github.com/locnguyn" target="_blank">Loc Nguyen Xuan</a>
 
 &#xa0;
 
