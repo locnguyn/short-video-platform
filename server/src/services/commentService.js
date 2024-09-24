@@ -1,6 +1,6 @@
 import models from "../models/index.js";
 
-const addComment = async (_, { videoId, content, parentCommentId }, { user }) => {
+const addComment = async (videoId, content, parentCommentId, userId) => {
     const MAX_DEPTH = 3;
 
     let parentComment = null;
@@ -22,13 +22,18 @@ const addComment = async (_, { videoId, content, parentCommentId }, { user }) =>
 
     const newComment = new models.Comment({
         content,
-        userId: user.id,
+        userId: userId,
         videoId,
         parentCommentId,
         level: newCommentLevel,
     });
 
     await newComment.save();
+    await models.Video.findByIdAndUpdate(videoId, {
+        $inc: {
+            commentsCount: 1
+        }
+    })
 
     return newComment;
 }
@@ -37,7 +42,7 @@ const getVideoComments = async (videoId, page, limit) => {
     try {
         const skip = (page - 1) * limit;
 
-        const comments = await models.Comment.find({ videoId: videoId })
+        const comments = await models.Comment.find({ videoId: videoId, parentCommentId: null })
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
@@ -50,7 +55,7 @@ const getVideoComments = async (videoId, page, limit) => {
 
 const getChildrenComments = async (commentId) => {
     return models.Comment.find({parentCommentId: commentId});
-}
+};
 
 export default {
     addComment,

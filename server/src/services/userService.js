@@ -4,8 +4,14 @@ import bcrypt from 'bcryptjs'
 import uploadService from "./uploadService.js";
 
 const getUser = async (userId, viewerId) => {
+    console.log(userId);
     try {
-        const user = await models.User.findById(userId);
+        let user;
+        user = await models.User.findOne({username: userId});
+        if (user) {
+            return user;
+        }
+        user = await models.User.findById(userId);
         if (!user) {
             console.log('User not found for id:', userId);
             throw new Error('User not found');

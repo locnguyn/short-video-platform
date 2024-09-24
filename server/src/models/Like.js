@@ -7,6 +7,6 @@ const likeSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-likeSchema.index({ userId: 1, targetType: 1, targetId: 1 }, { unique: true });
+likeSchema.index({ user: 1, targetType: 1, targetId: 1 }, { unique: true });
 
 export default mongoose.model('Like', likeSchema);

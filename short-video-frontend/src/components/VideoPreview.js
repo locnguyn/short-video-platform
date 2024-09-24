@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, debounce, Typography } from '@mui/material';
 import { Heart, Play } from 'lucide-react';
 
-const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbnailGenerated }) => {
+const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbnailGenerated, onClick = () => {} }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [autoThumbnail, setAutoThumbnail] = useState('');
     const videoRef = useRef(null);
@@ -91,6 +91,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            onClick={onClick}
         >
             <Box
                 sx={{

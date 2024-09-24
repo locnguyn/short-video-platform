@@ -64,7 +64,7 @@ const typeDefs = gql`
     parentComment: Comment
     replies: [Comment!]!
     level: Int!
-    createdAt: String!
+    createdAt: Date!
     likeCount: Int!
   }
 
@@ -135,8 +135,8 @@ const typeDefs = gql`
   }
 
   type Query {
-    getUser(id: ID!): User
-    getUserVideos(id: ID!, page: Int!, limit: Int!): [Video!]!
+    getUser(id: String!): User
+    getUserVideos(id: String!, page: Int!, limit: Int!): [Video!]!
     getUserFollowers(userId: ID!, first: Int, after: String): FollowConnection!
     getUserFollowing(userId: ID!, first: Int, after: String): FollowConnection!
     getVideo(id: ID!): Video
@@ -156,12 +156,13 @@ const typeDefs = gql`
     uploadVideo(title: String!, videoFile: Upload!, thumbnailFile: Upload, category: ID, tags: [String!]): Video!
     likeVideo(targetId: ID!): Boolean!
     unlikeVideo(targetId: ID!): Boolean!
+    viewVideo(videoId: ID!): Boolean!
     likeComment(targetId: ID!): Boolean!
     unlikeComment(targetId: ID!): Boolean!
     followUser(followingId: ID!): Boolean!
     unfollowUser(followingId: ID!): Boolean!
     addComment(videoId: ID!, content: String!, parentCommentId: ID): Comment!
-    saveVideo(videoId: ID!): Save!
+    saveVideo(videoId: ID!): Boolean!
     unsaveVideo(videoId: ID!): Boolean!
     updateUserPreference(categoryId: ID!, score: Float!): UserPreference!
     recordUserInteraction(videoId: ID!, interactionTypeId: ID!, score: Float): UserInteraction!

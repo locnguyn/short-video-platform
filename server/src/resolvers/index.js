@@ -6,6 +6,8 @@ import likeService from '../services/likeService.js';
 import commentService from '../services/commentService.js';
 import followService from '../services/followService.js';
 import categoryService from '../services/categoryService.js';
+import saveService from '../services/saveService.js';
+import viewService from '../services/viewService.js';
 
 
 const resolvers = {
@@ -61,7 +63,7 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return videoService.likeVideo(targetId, context.user.id);
+            return likeService.likeVideo(targetId, context.user.id);
         },
         unlikeVideo:  async (_, { targetId }, context) => {
             if (!context.user) {
@@ -70,11 +72,28 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return videoService.unlikeVideo(targetId, context.user.id);
+            return likeService.unlikeVideo(targetId, context.user.id);
+        },
+        viewVideo: async (_, { videoId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to like a video');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return viewService.viewVideo(context.user.id, videoId);
         },
         likeComment: likeService.likeComment,
         unlikeComment: likeService.unlikeComment,
-        addComment: commentService.addComment,
+        addComment: async (_, { videoId, content, parentCommentId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to comment on video');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return commentService.addComment(videoId, content, parentCommentId, context.user.id);
+        },
         followUser: async (_, { followingId }, context) => {
             if (!context.user) {
                 throw new Error('You must be logged in to follow this user!');
@@ -92,7 +111,25 @@ const resolvers = {
                 throw new Error(tokenError);
             }
             return followService.unfollowUser(context.user.id, followingId);
-        }
+        },
+        saveVideo: async (_, { videoId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to save this video!');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return saveService.saveVideo(context.user.id, videoId);
+        },
+        unsaveVideo: async (_, { videoId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to unsave this video!');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return saveService.unsaveVideo(context.user.id, videoId);
+        },
     },
     User: {
         isFollowed: async (parent, _, context) => {
@@ -135,6 +172,9 @@ const resolvers = {
     Comment: {
         replies: (parent, _) => {
             return commentService.getChildrenComments(parent._id);
+        },
+        user: async (parent, _) => {
+            return userService.getUser(parent.userId);
         },
     }
 };

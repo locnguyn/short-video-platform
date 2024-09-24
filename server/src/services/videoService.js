@@ -57,8 +57,15 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
 
 const getUserVideos = async (id, page, limit) => {
   try {
+    let user = await models.User.findOne({ username: id });
+    if (!user) {
+      user = await models.User.findById(id);
+    }
+    if (!user) {
+      throw new Error("User not found");
+    }
     const skip = (page - 1) * limit;
-    const videos = await models.Video.find({ user: id })
+    const videos = await models.Video.find({ user: user.id })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -72,8 +79,8 @@ const getUserVideos = async (id, page, limit) => {
 
 const isSaved = async (userId, videoId) => {
   const save = await models.Save.findOne({
-    user: userId,
-    video: videoId
+    userId: userId,
+    videoId: videoId
   });
   return !!save;
 }
@@ -81,7 +88,8 @@ const isSaved = async (userId, videoId) => {
 const isLiked = async (userId, videoId) => {
   const like = await models.Like.findOne({
     user: userId,
-    video: videoId
+    targetId: videoId,
+    targetType: 'Video',
   });
   return !!like;
 }

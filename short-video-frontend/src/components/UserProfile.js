@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, gql, useMutation } from '@apollo/client';
 import { Box, Typography, CircularProgress, Grid, Card, Container, Avatar, Button, useTheme } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import VideoPreview from './VideoPreview';
 import { debounce } from 'lodash';
+import { FOLLOW_USER, UNFOLLOW_USER } from '../GraphQLQueries/followQueries';
 
 const GET_USER_PROFILE = gql`
-    query GetUser($userId: ID!) {
+    query GetUser($userId: String!) {
         getUser(id: $userId) {
             id
             username
@@ -20,7 +21,7 @@ const GET_USER_PROFILE = gql`
 `;
 
 const GET_USER_VIDEO = gql`
-    query GetUserVideos($id: ID!, $page: Int!, $limit: Int!) {
+    query GetUserVideos($id: String!, $page: Int!, $limit: Int!) {
         getUserVideos(id: $id, page: $page, limit: $limit) {
             id
             thumbnailUrl
@@ -32,18 +33,6 @@ const GET_USER_VIDEO = gql`
     }
 `;
 
-const FOLLOW_USER = gql`
-  mutation FollowUser($followingId: ID!) {
-    followUser(followingId: $followingId)
-  }
-`;
-
-const UNFOLLOW_USER = gql`
-  mutation UnfollowUser($followingId: ID!) {
-    unfollowUser(followingId: $followingId)
-  }
-`;
-
 const VIDEOS_PER_PAGE = 12;
 
 const UserInfo = ({ userId }) => {
@@ -51,16 +40,19 @@ const UserInfo = ({ userId }) => {
     const { data } = useQuery(GET_USER_PROFILE, {
         variables: { userId },
     });
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const [followUser] = useMutation(FOLLOW_USER);
     const [unfollowUser] = useMutation(UNFOLLOW_USER);
+    let user;
 
     const [localFollowerCount, setLocalFollowerCount] = useState(0);
     const [localIsFollowed, setLocalIsFollowed] = useState(false);
     const handleFollowUser = async () => {
         try {
             await followUser({
-                variables: { followingId: userId },
+                variables: { followingId: user?.id },
             });
             setLocalIsFollowed(true);
             setLocalFollowerCount(prev => prev + 1);
@@ -72,7 +64,7 @@ const UserInfo = ({ userId }) => {
     const handleUnfollowUser = async () => {
         try {
             await unfollowUser({
-                variables: { followingId: userId },
+                variables: { followingId: user?.id },
             });
             setLocalIsFollowed(false);
             setLocalFollowerCount(prev => prev - 1);
@@ -80,11 +72,28 @@ const UserInfo = ({ userId }) => {
             console.error("Unfollow error", error);
         }
     };
-    const user = data?.getUser;
-    if (localFollowerCount === 0 && user) {
-        setLocalFollowerCount(user.followerCount);
-        setLocalIsFollowed(user.isFollowed);
-    }
+    user = data?.getUser;
+    useEffect(() => {
+        if (user) {
+            setLocalFollowerCount(user.followerCount);
+            setLocalIsFollowed(user.isFollowed);
+        }
+    }, [data])
+
+    // useEffect(() => {
+    //     if (location.state) {
+    //         console.log(location.state.isFollowed)
+    //         if (location.state.isFollowed !== localIsFollowed) {
+    //             if (location.state.isFollowed === true) {
+    //                 setLocalFollowerCount(pre => pre + 1);
+    //             }
+    //             else {
+    //                 setLocalFollowerCount(pre => pre - 1);
+    //             }
+    //             setLocalIsFollowed(location.state.isFollowed);
+    //         }
+    //     }
+    // }, [navigate, location]);
     if (!user) return null;
 
     return (
@@ -130,10 +139,30 @@ const UserProfile = () => {
     const [page, setPage] = useState(1);
     const [videos, setVideos] = useState([]);
     const [hasMore, setHasMore] = useState(true);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const { loading, error, data, fetchMore } = useQuery(GET_USER_VIDEO, {
         variables: { id: userId, page: 1, limit: VIDEOS_PER_PAGE },
+        skip: videos.length > 0, // Skip the initial query if we have videos in state
     });
+
+    useEffect(() => {
+        // Try to load saved state when component mounts
+        const savedState = sessionStorage.getItem(`userProfile_${userId}`);
+        if (savedState) {
+            const { videos: savedVideos, page: savedPage, hasMore: savedHasMore } = JSON.parse(savedState);
+            setVideos(savedVideos);
+            setPage(savedPage);
+            setHasMore(savedHasMore);
+        }
+    }, [userId]);
+
+    useEffect(() => {
+        // Save state when component updates
+        const state = { videos, page, hasMore };
+        sessionStorage.setItem(`userProfile_${userId}`, JSON.stringify(state));
+    }, [userId, videos, page, hasMore]);
 
     useEffect(() => {
         if (data?.getUserVideos) {
@@ -197,6 +226,13 @@ const UserProfile = () => {
                                 views={video.views}
                                 likes={video.likeCount}
                                 isViewed={video.isViewed}
+                                onClick={() => {
+                                    navigate(`/${userId}/video/${video.id}`, {
+                                        state: {
+                                            prevUrl: location.pathname
+                                        }
+                                    })
+                                }}
                             />
                         </Grid>
                     ))}

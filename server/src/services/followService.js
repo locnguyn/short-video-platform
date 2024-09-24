@@ -1,6 +1,7 @@
 import models from "../models/index.js";
 
 const followUser = async (followerId, followingId) => {
+
     try {
         const existingFollow = await models.Follow.findOne({
             follower: followerId,
