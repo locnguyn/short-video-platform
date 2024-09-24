@@ -17,7 +17,7 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
   let uploadedVideoLocation = null;
   let uploadedThumbnailLocation = null;
   try {
-    const res = await uploadService.uploadToS3( thumbnailFile, 'thumbnail');
+    const res = await uploadService.uploadToS3(thumbnailFile, 'thumbnail');
     uploadedThumbnailLocation = res.Location;
     const result = await uploadService.uploadToS3(videoFile, 'video');
     uploadedVideoLocation = result.Location;
@@ -55,8 +55,51 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
   };
 }
 
+const getUserVideos = async (id, page, limit) => {
+  try {
+    const skip = (page - 1) * limit;
+    const videos = await models.Video.find({ user: id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return videos;
+  } catch (error) {
+    console.error('Error fetching user videos:', error);
+    throw new Error('An error occurred while fetching videos');
+  }
+}
+
+const isSaved = async (userId, videoId) => {
+  const save = await models.Save.findOne({
+    user: userId,
+    video: videoId
+  });
+  return !!save;
+}
+
+const isLiked = async (userId, videoId) => {
+  const like = await models.Like.findOne({
+    user: userId,
+    video: videoId
+  });
+  return !!like;
+}
+
+const isViewed = async (userId, videoId) => {
+  const view = await models.View.findOne({
+    user: userId,
+    video: videoId
+  });
+  return !!view;
+};
+
 export default {
   getVideo,
   getRecommendedVideos,
-  uploadVideo
+  uploadVideo,
+  getUserVideos,
+  isSaved,
+  isLiked,
+  isViewed
 }

@@ -6,6 +6,7 @@ const commentSchema = new mongoose.Schema({
     videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Video' },
     parentCommentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment' },
     level: { type: Number, default: 0 },
+    likeCount: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
 });
 

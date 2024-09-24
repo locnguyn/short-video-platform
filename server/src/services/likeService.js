@@ -1,13 +1,13 @@
 import models from "../models/index.js";
 
-const likeVideo = async (_, { videoId }, { user }) => {
-    const newLike = new models.Like({ userId: user.id, targetType: 'Video', targetId: videoId });
+const likeVideo = async (videoId, userId) => {
+    const newLike = new models.Like({ user: userId, targetType: 'Video', targetId: videoId });
     await newLike.save();
-    return newLike;
+    return !!newLike;
 }
 
-const unlikeVideo = async (_, { videoId }, { user }) => {
-    const result = await models.Like.findOneAndDelete({ userId: user.id, targetType: 'Video', targetId: videoId });
+const unlikeVideo = async (videoId, userId) => {
+    const result = await models.Like.findOneAndDelete({ userId: userId, targetType: 'Video', targetId: videoId });
     return !!result;
 }
 

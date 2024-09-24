@@ -9,6 +9,7 @@ import {
     Select,
     MenuItem,
     Chip,
+    debounce,
 } from '@mui/material';
 import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import VideoPreview from './VideoPreview';
@@ -179,7 +180,8 @@ const UploadVideo = () => {
                         <VideoPreview
                             videoUrl={videoPreviewUrl}
                             thumbnailUrl={thumbnailFile ? URL.createObjectURL(thumbnailFile) : ''}
-                            title={title || 'Video Preview'}
+                            title={'100K'}
+                            onThumbnailGenerated={setThumbnailFile}
                         />
                     </Box>
                 )}

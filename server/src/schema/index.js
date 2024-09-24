@@ -8,10 +8,10 @@ const typeDefs = gql`
     username: String!
     email: String!
     profilePicture: String
-    videos: [Video!]!
     createdAt: String!
     followerCount: Int!
     followingCount: Int!
+    isFollowed: Boolean
   }
 
   type FollowConnection {
@@ -41,7 +41,7 @@ const typeDefs = gql`
     title: String!
     videoUrl: String!
     thumbnailUrl: String
-    duration: Float!
+    duration: Float
     category: Category
     tags: [String!]!
     likeCount: Int!
@@ -50,6 +50,9 @@ const typeDefs = gql`
     savesCount: Int!
     engagementRate: Float!
     createdAt: Date!
+    isViewed: Boolean
+    isLiked: Boolean
+    isSaved: Boolean
   }
 
 
@@ -62,6 +65,7 @@ const typeDefs = gql`
     replies: [Comment!]!
     level: Int!
     createdAt: String!
+    likeCount: Int!
   }
 
   type Like {
@@ -132,9 +136,11 @@ const typeDefs = gql`
 
   type Query {
     getUser(id: ID!): User
+    getUserVideos(id: ID!, page: Int!, limit: Int!): [Video!]!
     getUserFollowers(userId: ID!, first: Int, after: String): FollowConnection!
     getUserFollowing(userId: ID!, first: Int, after: String): FollowConnection!
     getVideo(id: ID!): Video
+    getVideoComments(videoId: ID!, page: Int!, limit: Int!): [Comment!]!
     getComments(videoId: ID!): [Comment!]!
     getRecommendedVideos(userId: ID!): [Video!]!
     searchVideos(keyword: String!): [Video!]!

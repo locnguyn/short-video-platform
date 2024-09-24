@@ -9,6 +9,7 @@ import Recommendation from './Recommendation.js';
 import Save from './Save.js';
 import UserInteraction from './UserInteraction.js';
 import UserPreference from './UserPreference.js';
+import View from './View.js';
 
 export default {
   User,
@@ -21,5 +22,6 @@ export default {
   UserInteraction,
   Save,
   Like,
-  Recommendation
+  Recommendation,
+  View
 };

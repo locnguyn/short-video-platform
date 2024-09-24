@@ -33,6 +33,27 @@ const addComment = async (_, { videoId, content, parentCommentId }, { user }) =>
     return newComment;
 }
 
+const getVideoComments = async (videoId, page, limit) => {
+    try {
+        const skip = (page - 1) * limit;
+
+        const comments = await models.Comment.find({ videoId: videoId })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        return comments;
+    } catch (err) {
+        console.error("Error getting video comments", err);
+        throw new Error("An error occurred while getting video comments");
+    };
+};
+
+const getChildrenComments = async (commentId) => {
+    return models.Comment.find({parentCommentId: commentId});
+}
+
 export default {
-    addComment
+    addComment,
+    getVideoComments,
+    getChildrenComments
 }

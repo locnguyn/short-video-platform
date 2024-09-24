@@ -13,7 +13,7 @@ export const LoginPage = () => {
 
   const handleLoginSuccess = (data) => {
     saveToken(data.token);
-    console.log('Login successful:', data);
+    console.log('Login successful:', data.user);
     dispatchUser({
       type: "login",
       payload: data.user
