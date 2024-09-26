@@ -1,24 +1,10 @@
 import React from 'react';
 import { useMutation } from '@apollo/client';
-import { gql } from '@apollo/client';
 import { Button, Divider, Typography, useTheme } from '@mui/material';
 import StyledForm from "../styledComponents/StyledForm.js";
 import StyledTextField from "../styledComponents/StyledTextField.js";
 import OAuth2 from '../OAuth2.js';
-
-const LOGIN_USER = gql`
-  mutation LoginUser($email: String!, $password: String!) {
-    loginUser(email: $email, password: $password) {
-      token
-      user {
-        id
-        username
-        email
-        profilePicture
-      }
-    }
-  }
-`;
+import { LOGIN_USER } from '../../GraphQLQueries/userQueries.js';
 
 const LoginForm = ({ onSuccess }) => {
   const theme = useTheme();

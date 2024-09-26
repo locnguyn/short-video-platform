@@ -23,6 +23,7 @@ const Search = styled('div')(({ theme }) => ({
     marginLeft: theme.spacing(3),
     width: '30%',
   },
+  borderRadius: '30px'
 }));
 
 const SearchIconWrapper = styled('div')(({ theme }) => ({
@@ -51,7 +52,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   '&::placeholder': {
     color: theme.palette.text.secondary,
     opacity: 0.7,
-  },
+  }
 }));
 
 const Header = () => {
@@ -104,7 +105,7 @@ const Header = () => {
             <SearchIcon />
           </SearchIconWrapper>
           <StyledInputBase
-            placeholder="Search videos…"
+            placeholder="Tìm kiếm…"
             inputProps={{ 'aria-label': 'search' }}
           />
         </Search>
@@ -186,7 +187,7 @@ const Header = () => {
             }}
             onClick={() => navigate('/login')}
           >
-            Login
+            Đăng nhập
           </Button>
         )}
       </Toolbar>

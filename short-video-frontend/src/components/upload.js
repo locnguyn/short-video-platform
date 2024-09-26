@@ -82,6 +82,15 @@ const UploadVideo = () => {
     const videoInputRef = useRef();
     const thumbnailInputRef = useRef();
 
+    const reset = () => {
+        // setTitle('');
+        setVideoFile(null);
+        setThumbnailFile(null);
+        // setCategory('');
+        // setTags([]);
+        setVideoPreviewUrl('');
+    }
+
     const handleVideoChange = useCallback((event) => {
         const file = event.target.files[0];
         setVideoFile(file);
@@ -103,13 +112,6 @@ const UploadVideo = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
-            console.log({
-                title,
-                videoFile,
-                thumbnailFile,
-                category,
-                tags
-            })
             const { data } = await uploadVideo({
                 variables: {
                     title,
@@ -119,7 +121,7 @@ const UploadVideo = () => {
                     tags
                 }
             });
-            console.log('Video uploaded:', data.uploadVideo);
+            reset();
             // Handle success (e.g., show a success message, redirect to the video page)
         } catch (err) {
             console.error('Error uploading video:', err);

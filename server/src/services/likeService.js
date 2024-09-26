@@ -11,9 +11,6 @@ const likeVideo = async (videoId, userId) => {
             return false;
         }
         const newLike = new models.Like({ user: userId, targetType: 'Video', targetId: videoId });
-
-
-        console.log("New like object before save:", newLike.toObject());
         await newLike.save();
         await models.Video.findByIdAndUpdate(videoId, {
             $inc: {
@@ -38,14 +35,39 @@ const unlikeVideo = async (videoId, userId) => {
     return !!result;
 }
 
-const likeComment = async (_, { commentId }, { user }) => {
-    const newLike = new models.Like({ userId: user.id, targetType: 'Comment', targetId: commentId });
-    await newLike.save();
-    return newLike;
+const likeComment = async (userId, commentId) => {
+    try {
+        const existingLike = await models.Like.findOne({
+            user: userId,
+            targetId: commentId,
+            targetType: 'Comment'
+        });
+        if (existingLike) {
+            return false;
+        }
+        const newLike = new models.Like({ user: userId, targetType: 'Comment', targetId: commentId });
+
+        await newLike.save();
+        await models.Comment.findByIdAndUpdate(commentId, {
+            $inc: {
+                likeCount: 1
+            }
+        });
+        return true;
+    } catch (error) {
+        console.error("error like comment", error);
+        return false;
+    }
 }
 
-const unlikeComment = async (_, { commentId }, { user }) => {
-    const result = await models.Like.findOneAndDelete({ userId: user.id, targetType: 'Comment', targetId: commentId });
+const unlikeComment = async (userId, commentId) => {
+    const result = await models.Like.findOneAndDelete({ user: userId, targetType: 'Comment', targetId: commentId });
+    if(result)
+        await models.Comment.findByIdAndUpdate(commentId, {
+            $inc: {
+                likeCount: -1
+            }
+        })
     return !!result;
 }
 

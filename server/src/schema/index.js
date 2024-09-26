@@ -53,6 +53,8 @@ const typeDefs = gql`
     isViewed: Boolean
     isLiked: Boolean
     isSaved: Boolean
+    nextVideo: Video
+    prevVideo: Video
   }
 
 
@@ -66,6 +68,7 @@ const typeDefs = gql`
     level: Int!
     createdAt: Date!
     likeCount: Int!
+    isLiked: Boolean
   }
 
   type Like {
@@ -137,12 +140,13 @@ const typeDefs = gql`
   type Query {
     getUser(id: String!): User
     getUserVideos(id: String!, page: Int!, limit: Int!): [Video!]!
+    getNextUserVideo(currentVideoCreatedAt: String!, userId: ID!): Video
     getUserFollowers(userId: ID!, first: Int, after: String): FollowConnection!
     getUserFollowing(userId: ID!, first: Int, after: String): FollowConnection!
     getVideo(id: ID!): Video
     getVideoComments(videoId: ID!, page: Int!, limit: Int!): [Comment!]!
     getComments(videoId: ID!): [Comment!]!
-    getRecommendedVideos(userId: ID!): [Video!]!
+    getRecommendedVideos(limit: Int!): [Video!]!
     searchVideos(keyword: String!): [Video!]!
     getCategories: [Category!]!
     getUserInteractions(userId: ID!): [UserInteraction!]!
@@ -169,7 +173,7 @@ const typeDefs = gql`
   }
 
   type Subscription {
-    newComment(videoId: ID!): Comment!
+    commentAdded(videoId: ID!): Comment!
     newMessage(chatId: ID!): Message!
   }
 

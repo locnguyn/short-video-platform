@@ -12,6 +12,7 @@ import UserProfile from './components/UserProfile';
 import UserContext from './contexts/userContext';
 import UserReducer from './reducers/UserReducer';
 import VideoDetailPage from './pages/VideoDetail';
+import HomeLayout from './layouts/HomeLayout';
 
 function App() {
   const [user, userDispatcher] = useReducer(UserReducer, JSON.parse(localStorage.getItem("user")) || null);
@@ -20,18 +21,21 @@ function App() {
       type: "logout"
     });
   }
+
   return (
     <ApolloProvider client={client}>
       <ToggleColorMode>
-        <UserContext.Provider value={{user, userDispatcher, logout}}>
+        <UserContext.Provider value={{ user, userDispatcher, logout }}>
           <Router>
             <MainLayout>
               <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/upload" element={<VideoUpload />} />
+                <Route path="/" element={<HomeLayout />}>
+                  <Route index element={<HomePage />} />
+                  <Route path="login" element={<LoginPage />} />
+                  <Route path="register" element={<RegisterPage />} />
+                  <Route path="upload" element={<VideoUpload />} />
+                </Route>
                 <Route path="/:userId/video/:id" element={<VideoDetailPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
                 <Route path="/:userId" element={<UserProfile />} />
               </Routes>
             </MainLayout>

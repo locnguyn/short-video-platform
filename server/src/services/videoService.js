@@ -1,15 +1,114 @@
-import { Upload } from "@aws-sdk/lib-storage";
 import models from "../models/index.js";
 import uploadService from "./uploadService.js";
 
 const getVideo = async (id) => {
   return await models.Video.findById(id);
-}
+};
 
-const getRecommendedVideos = async (userId) => {
-  // Implement recommendation logic here
-  return await models.Video.find().limit(10);
-}
+const isSaved = async (userId, videoId) => {
+  const save = await models.Save.findOne({
+    userId: userId,
+    videoId: videoId
+  });
+  return !!save;
+};
+
+const isLiked = async (userId, videoId) => {
+  const like = await models.Like.findOne({
+    user: userId,
+    targetId: videoId,
+    targetType: 'Video',
+  });
+  return !!like;
+};
+
+const isViewed = async (userId, videoId) => {
+  const view = await models.View.findOne({
+    user: userId,
+    video: videoId
+  });
+  return !!view;
+};
+
+const getRecommendedVideos = async (userId, limit = 10) => {
+  try {
+    // Get user's viewing history
+    const viewedVideoIds = await models.View.distinct('video', { user: userId });
+
+    // Get user's liked videos
+    const likedVideoIds = await models.Like.distinct('targetId', { user: userId, targetType: 'Video' });
+
+    // Get user's interests (categories and tags) from viewed and liked videos
+    const userInterests = await models.Video.aggregate([
+      {
+        $match: {
+          $or: [
+            { _id: { $in: viewedVideoIds } },
+            { _id: { $in: likedVideoIds } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          categories: { $addToSet: '$category' },
+          tags: { $addToSet: '$tags' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          categories: 1,
+          tags: { $reduce: {
+            input: '$tags',
+            initialValue: [],
+            in: { $setUnion: ['$$value', '$$this'] }
+          }}
+        }
+      }
+    ]);
+
+    const { categories, tags } = userInterests[0] || { categories: [], tags: [] };
+
+    // Find recommended videos
+    const recommendedVideos = await models.Video.aggregate([
+      {
+        $match: {
+          _id: { $nin: [...viewedVideoIds, ...likedVideoIds] },
+          $or: [
+            { category: { $in: categories } },
+            { tags: { $in: tags } }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              { $multiply: ['$views', 0.5] },
+              { $multiply: ['$likeCount', 2] },
+              {
+                $cond: [
+                  { $in: ['$category', categories] },
+                  10,
+                  0
+                ]
+              },
+            ]
+          },
+          id: "$_id",
+        }
+      },
+      { $sort: { score: -1 } },
+      { $limit: limit },
+    ]);
+
+    return recommendedVideos;
+  } catch (error) {
+    console.error('Error getting recommended videos:', error);
+    throw new Error('An error occurred while fetching recommended videos');
+  }
+};
 
 
 
@@ -53,7 +152,7 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
     console.error("Error in upload video:", error);
     throw new Error(error.message || "An error occurred during upload video");
   };
-}
+};
 
 const getUserVideos = async (id, page, limit) => {
   try {
@@ -75,39 +174,44 @@ const getUserVideos = async (id, page, limit) => {
     console.error('Error fetching user videos:', error);
     throw new Error('An error occurred while fetching videos');
   }
-}
+};
 
-const isSaved = async (userId, videoId) => {
-  const save = await models.Save.findOne({
-    userId: userId,
-    videoId: videoId
-  });
-  return !!save;
-}
+const getNextUserVideo = async (currentVideoCreatedAt, userId) => {
+  try {
+    const video = await models.Video.findOne({
+      createdAt: { $lt: currentVideoCreatedAt },
+      user: userId
+    }).sort({ createdAt: -1 });
+    return video;
+  } catch (error) {
+    console.error('Error get next user video:', error);
+    throw new Error('An error occurred while fetching next user video');
+  }
+};
 
-const isLiked = async (userId, videoId) => {
-  const like = await models.Like.findOne({
-    user: userId,
-    targetId: videoId,
-    targetType: 'Video',
-  });
-  return !!like;
-}
-
-const isViewed = async (userId, videoId) => {
-  const view = await models.View.findOne({
-    user: userId,
-    video: videoId
-  });
-  return !!view;
+const getPrevUserVideo = async (currentVideoCreatedAt, userId) => {
+  try {
+    const video = await models.Video.findOne({
+      createdAt: {
+        $gt: currentVideoCreatedAt
+      },
+      user: userId
+    });
+    return video;
+  } catch (error) {
+    console.error('Error get previous user video:', error);
+    throw new Error('An error occurred while fetching previous user video');
+  }
 };
 
 export default {
   getVideo,
+  getNextUserVideo,
+  getPrevUserVideo,
   getRecommendedVideos,
   uploadVideo,
   getUserVideos,
   isSaved,
   isLiked,
   isViewed
-}
+};

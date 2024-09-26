@@ -5,43 +5,34 @@ import dotenv from 'dotenv';
 import typeDefs from './schema/index.js';
 import resolvers from './resolvers/index.js';
 import morgan from 'morgan';
-import jwt from 'jsonwebtoken';
 import cors from 'cors'
 import http from 'http';
 import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import { ApolloServerPluginDrainHttpServer } from 'apollo-server-core';
 
-import videoRouter from './Router/videoRouter.js'
 import { verifyToken } from './utils/jwtTokenUtils.js';
-import models from './models/index.js';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/lib/use/ws';
 
 dotenv.config();
 
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
-
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
-  app.use(morgan('combined'));
-  app.use(graphqlUploadExpress());
-  app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true
-  }));
-
-  app.use('/api', videoRouter)
-  app.use((err, req, res, next) => {
-    console.error('Express error:', err);
-    res.status(500).send('Something went wrong');
+  const schema = makeExecutableSchema({ typeDefs, resolvers });
+  const wsServer = new WebSocketServer({
+    // This is the `httpServer` we created in a previous step.
+    server: httpServer,
+    // Pass a different path here if app.use
+    // serves expressMiddleware at a different path
+    path: '/graphql',
   });
 
-  const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    context: ({ req }) => {
-      console.log(req.body)
-      const token = req.headers.authorization || '';
+  const serverCleanup = useServer({
+    schema,
+    context: async (ctx, msg, args) => {
+      const token = ctx.connectionParams?.authorization || '';
       let user = null;
       let tokenError = null;
 
@@ -49,17 +40,64 @@ async function startServer() {
         const { valid, error, decoded } = verifyToken(token);
         if (valid) {
           user = { id: decoded.userId };
-          console.log(user)
         } else {
           tokenError = error;
         }
       }
 
-      return { user };
+      return { user, tokenError };
+    },
+  }, wsServer);
+
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  app.use(morgan('combined'));
+  app.use(graphqlUploadExpress());
+  app.use(cors({
+    origin: '*',
+    credentials: true
+  }));
+
+  app.use((err, req, res, next) => {
+    console.error('Express error:', err);
+    res.status(500).send('Something went wrong');
+  });
+
+  const server = new ApolloServer({
+    schema,
+    context: ({ req, connection }) => {
+      if (connection) {
+        // Đây là một WebSocket connection
+        return connection.context;
+      } else {
+        // Đây là một HTTP request
+        const token = req.headers.authorization || '';
+        let user = null;
+        let tokenError = null;
+        if (token) {
+          const { valid, error, decoded } = verifyToken(token);
+          if (valid) {
+            user = { id: decoded.userId };
+          } else {
+            tokenError = error;
+          }
+        }
+        return { user, tokenError };
+      }
     },
     csrfPrevention: true,
     cache: 'bounded',
-    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+    plugins: [ApolloServerPluginDrainHttpServer({ httpServer }),
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          },
+        };
+      },
+    },
+    ],
   });
 
   await server.start();

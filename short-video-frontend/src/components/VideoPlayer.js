@@ -15,7 +15,7 @@ const ControlsOverlay = styled(Box)(({ theme }) => ({
   bottom: 0,
   left: 0,
   right: 0,
-  background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+  background: 'linear-gradient(transparent, rgba(0,0,0,0.3))',
   color: 'white',
   padding: theme.spacing(2),
   transition: 'bottom 0.3s ease-in-out',
@@ -68,7 +68,6 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
     setIsVideoLoaded(true);
     setDuration(videoRef.current.duration);
     if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
-      console.log(videoRef.current.videoWidth, videoRef.current.videoHeight);
       setAspectRatio(videoRef.current.videoWidth / videoRef.current.videoHeight);
       setVideoHeight(videoRef.current.videoHeight);
     }
@@ -145,16 +144,16 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
 
   return (
     <Box
-        sx={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          scrollSnapAlign: 'start',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
+      sx={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        scrollSnapAlign: 'start',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
     >
       <Box
         sx={{
@@ -210,7 +209,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
               min={0}
               max={duration}
               value={currentTime}
+              step={0.001}
               onChange={handleSeek}
+              className="video-progress"
               style={{
                 flex: 1,
                 margin: '0 10px',
@@ -253,10 +254,11 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
                     step={0.1}
                     value={volume}
                     onChange={handleVolumeChange}
+                    className="video-progress"
                     style={{
                       WebkitAppearance: 'none',
                       width: '80px',
-                      height: '4px',
+                      height: '3px',
                       background: '#fff',
                       outline: 'none',
                       transform: 'rotate(-90deg)',
@@ -272,23 +274,23 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
       </Box>
       <style>
         {`
-        input[type=range] {
+        .video-progress {
           -webkit-appearance: none;
           margin: 10px 0;
           width: 100%;
           background: transparent;
         }
-        input[type=range]:focus {
+        .video-progress:focus {
           outline: none;
         }
-        input[type=range]::-webkit-slider-runnable-track {
+        .video-progress::-webkit-slider-runnable-track {
           width: 100%;
           height: 3px;
           cursor: pointer;
           animate: 0.1s;
           border-radius: 1.5px;
         }
-        input[type=range]::-webkit-slider-thumb {
+        .video-progress::-webkit-slider-thumb {
           height: 12px;
           width: 12px;
           border-radius: 50%;
@@ -297,17 +299,20 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           -webkit-appearance: none;
           margin-top: -4.5px;
           box-shadow: 0 0 3px rgba(0,0,0,0.4);
+          opacity: 0;
+          transition: opacity 0.2s ease;
         }
-        input[type=range]:focus::-webkit-slider-runnable-track {
+        .video-progress:hover::-webkit-slider-thumb {
+          opacity: 1;
         }
-        input[type=range]::-moz-range-track {
+        .video-progress::-moz-range-track {
           width: 100%;
           height: 3px;
           cursor: pointer;
           animate: 0.1s;
           border-radius: 1.5px;
         }
-        input[type=range]::-moz-range-thumb {
+        .video-progress::-moz-range-thumb {
           height: 12px;
           width: 12px;
           border-radius: 50%;
@@ -315,6 +320,11 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           cursor: pointer;
           border: none;
           box-shadow: 0 0 3px rgba(0,0,0,0.4);
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .video-progress:hover::-moz-range-thumb {
+          opacity: 1;
         }
         `}
       </style>

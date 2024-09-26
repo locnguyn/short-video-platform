@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     Box,
@@ -12,100 +12,28 @@ import {
     CardContent,
     useMediaQuery,
     useTheme,
-    Collapse,
     Divider,
-    TextField
+    TextField,
+    CircularProgress,
+    debounce
 } from '@mui/material';
 import {
-    ThumbUp,
-    ThumbUpOutlined,
     Bookmark,
     BookmarkBorder,
-    ExpandMore,
-    ExpandLess,
     Close,
-    HeartBroken
 } from '@mui/icons-material';
-import { Heart, HeartIcon, MessageSquareMore, Play, Send, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Heart, MessageSquareMore, Play, Send, Volume2, VolumeX, X } from 'lucide-react';
 import { FOLLOW_USER, UNFOLLOW_USER } from '../GraphQLQueries/followQueries';
 import moment from 'moment';
 import 'moment/locale/vi';
 import { SAVE_VIDEO, UNSAVE_VIDEO } from '../GraphQLQueries/saveQueries';
 import { VIEW_VIDEO } from '../GraphQLQueries/viewQueries';
-import { ADD_COMMENT } from '../GraphQLQueries/commentQueries';
+import { ADD_COMMENT, COMMENT_ADDED_SUBSCRIPTION, GET_VIDEO_COMMENTS } from '../GraphQLQueries/commentQueries';
+import UserContext from '../contexts/userContext';
+import { GET_VIDEO_DETAILS } from '../GraphQLQueries/videoQueries';
+import { LIKE_VIDEO, UNLIKE_VIDEO } from '../GraphQLQueries/likeQueries';
+import Comment from '../components/Comment';
 moment.locale('vi');
-
-const GET_VIDEO_DETAILS = gql`
-  query GetVideoDetails($id: ID!) {
-    getVideo(id: $id) {
-      id
-      title
-      videoUrl
-      thumbnailUrl
-      duration
-      category {
-        name
-      }
-      tags
-      likeCount
-      views
-      commentsCount
-      savesCount
-      engagementRate
-      createdAt
-      isViewed
-      isLiked
-      isSaved
-      user {
-        id
-        username
-        profilePicture
-        isFollowed
-      }
-    }
-  }
-`;
-
-const GET_VIDEO_COMMENTS = gql`
-  query GetVideoComments($videoId: ID!, $page: Int!, $limit: Int!) {
-    getVideoComments(videoId: $videoId, page: $page, limit: $limit) {
-      id
-      content
-      user {
-        id
-        username
-        profilePicture
-      }
-      level
-      createdAt
-      likeCount
-      replies {
-        id
-        content
-        user {
-          id
-          username
-          profilePicture
-        }
-        level
-        createdAt
-        likeCount
-      }
-    }
-  }
-`;
-
-const LIKE_VIDEO = gql`
-  mutation LikeVideo($targetId: ID!) {
-    likeVideo(targetId: $targetId)
-  }
-`;
-
-const UNLIKE_VIDEO = gql`
-  mutation UnlikeVideo($targetId: ID!) {
-    unlikeVideo(targetId: $targetId)
-  }
-`;
 
 const DEFAULT_ASPECT_RATIO = 9 / 16;
 
@@ -115,7 +43,7 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [showComments, setShowComments] = useState(true);
     const [expandedComments, setExpandedComments] = useState({});
-    const [videoSize, setVideoSize] = useState({ width: 500, height: 1000 });
+    const [videoSize, setVideoSize] = useState({ width: 3000, height: 3000 });
     const [localLikeCount, setLocalLikeCount] = useState(0);
     const [localSavesCount, setLocalSavesCount] = useState(0);
     const [localCommentsCount, setLocalCommentsCount] = useState(0);
@@ -124,8 +52,18 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     const [localIsSaved, setLocalIsSaved] = useState(false);
     const [commentContent, setCommentContent] = useState('');
     const [replyingTo, setReplyingTo] = useState(null);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [comments, setComments] = useState([]);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+    const commentsContainerRef = useRef(null);
     const videoRef = useRef(null);
     const videoContainerRef = useRef(null);
+    const touchStartY = useRef(null);
+    const lastScrollTime = useRef(0);
+
+    const { user } = useContext(UserContext);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -134,9 +72,12 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
         variables: { id },
     });
 
-
-    const { data: commentsData, loading: commentsLoading, error: commentsError } = useQuery(GET_VIDEO_COMMENTS, {
+    const { data: commentsData, loading: commentsLoading, error: commentsError, fetchMore } = useQuery(GET_VIDEO_COMMENTS, {
         variables: { videoId: id, page: 1, limit: 10 },
+    });
+
+    const { data: subscriptionData } = useSubscription(COMMENT_ADDED_SUBSCRIPTION, {
+        variables: { videoId: id },
     });
 
     const [likeVideo] = useMutation(LIKE_VIDEO);
@@ -154,28 +95,142 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
             });
 
             if (existingComments) {
+                const newComment = {
+                    ...addComment,
+                    replies: addComment.replies || [],
+                };
+
                 const updatedComments = replyingTo
                     ? existingComments.getVideoComments.map(comment =>
                         comment.id === replyingTo
-                            ? { ...comment, replies: [...comment.replies, addComment] }
+                            ? {
+                                ...comment,
+                                replies: [...(comment.replies || []), newComment]
+                            }
                             : comment
                     )
-                    : [addComment, ...existingComments.getVideoComments];
+                    : [newComment, ...existingComments.getVideoComments];
+
+                const commentsWithReplies = updatedComments.map(comment => ({
+                    ...comment,
+                    replies: comment.replies || [],
+                }));
 
                 cache.writeQuery({
                     query: GET_VIDEO_COMMENTS,
                     variables: { videoId: id, page: 1, limit: 10 },
-                    data: { getVideoComments: updatedComments },
+                    data: { getVideoComments: commentsWithReplies },
                 });
             }
         },
     });
     const [localViews, setLocalViews] = useState(0);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
     const doubleClickTimeoutRef = useRef(null);
     const timeWatchedRef = useRef(0);
     const lastUpdateTimeRef = useRef(0);
     const viewCountedRef = useRef(false);
+
+    const attemptAutoplay = () => {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                setIsPlaying(true);
+            }).catch(error => {
+                console.warn("Autoplay was prevented:", error);
+                setIsPlaying(false);
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (isVideoLoaded && isVisible) {
+            attemptAutoplay();
+        } else if (videoRef.current) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        }
+    }, [isVideoLoaded, isVisible]);
+
+    const handleVideoLoaded = () => {
+        setIsVideoLoaded(true);
+        if (isVisible) {
+            attemptAutoplay();
+        }
+    };
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+          ([entry]) => {
+            setIsVisible(entry.isIntersecting);
+          },
+          { threshold: 0.6 }
+        );
+
+        return () => {
+          if (videoRef.current) {
+            observer.unobserve(videoRef.current);
+          }
+        };
+      }, []);
+
+    useEffect(() => {
+        if (subscriptionData && subscriptionData.commentAdded) {
+            const newComment = subscriptionData.commentAdded;
+            if (newComment.user.username !== user.username) {
+                setComments(prevComments => {
+                    if (newComment.level === 0) {
+                        return [newComment, ...prevComments];
+                    } else {
+                        return prevComments.map(comment => {
+                            if (comment.id === newComment.parentComment.id) {
+                                return {
+                                    ...comment,
+                                    replies: [
+                                        ...comment.replies,
+                                        newComment
+                                    ]
+                                };
+                            }
+                            return comment;
+                        });
+                    }
+                });
+                setLocalCommentsCount(prevCount => prevCount + 1);
+            }
+        }
+    }, [subscriptionData]);
+
+    const loadMoreComments = useCallback(debounce(() => {
+        if (!hasMore || commentsLoading) return;
+
+        fetchMore({
+            variables: {
+                videoId: id,
+                page: page + 1,
+                limit: 10
+            },
+        }).then((fetchMoreResult) => {
+            const newComments = fetchMoreResult.data.getVideoComments;
+            if (newComments.length > 0) {
+                console.log(newComments)
+                setComments(pre => [...pre, ...newComments]);
+                setPage(page + 1);
+                setHasMore(newComments.length === 10);
+            } else {
+                setHasMore(false);
+            }
+        });
+    }, 200), [fetchMore, hasMore, commentsLoading, id, page]);
+
+    useEffect(() => {
+        if (commentsData?.getVideoComments) {
+            setComments(commentsData.getVideoComments);
+            setHasMore(commentsData.getVideoComments.length === 10);
+        }
+    }, [commentsData])
 
     const handleAddComment = async () => {
         if (commentContent.trim() === '') return;
@@ -196,9 +251,27 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
         }
     };
 
+    const handleScroll = useCallback(() => {
+        if (commentsContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = commentsContainerRef.current;
+            if (scrollTop + clientHeight >= scrollHeight - 5) {
+                loadMoreComments();
+            }
+        }
+    }, [loadMoreComments]);
+    useEffect(() => {
+        const currentRef = commentsContainerRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('scroll', handleScroll);
+        }
+        return () => {
+            if (currentRef) {
+                currentRef.removeEventListener('scroll', handleScroll);
+            }
+        };
+    }, [handleScroll]);
+
     const handleReply = (commentId) => {
-        console.log(commentsData?.getVideoComments)
-        console.log(videoData?.getVideo)
         setReplyingTo(commentId);
     };
 
@@ -233,21 +306,17 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
         if (videoRef.current) {
             const currentTime = videoRef.current.currentTime;
             const duration = videoRef.current.duration;
-
-            // Tính toán thời gian đã xem
             const timeElapsed = currentTime - lastUpdateTimeRef.current;
-            if (timeElapsed > 0 && timeElapsed < 1) { // Chỉ cộng dồn nếu thời gian hợp lý (tránh tua)
+            if (timeElapsed > 0 && timeElapsed < 1) {
                 timeWatchedRef.current += timeElapsed;
             }
             lastUpdateTimeRef.current = currentTime;
 
-            // Kiểm tra điều kiện để tính lượt xem
             if (!viewCountedRef.current && (timeWatchedRef.current >= duration / 2 || timeWatchedRef.current >= 90)) {
                 handleVideoView();
                 viewCountedRef.current = true;
             }
 
-            // Reset trạng thái nếu video gần kết thúc
             if (currentTime >= duration - 1) {
                 resetViewState();
             }
@@ -255,12 +324,10 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     };
 
     const handleSeeked = () => {
-        // Reset thời gian xem khi người dùng tua video
         lastUpdateTimeRef.current = videoRef.current.currentTime;
     };
 
     const handleEnded = () => {
-        // Reset trạng thái khi video kết thúc
         resetViewState();
     };
 
@@ -282,17 +349,14 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
             let newWidth, newHeight;
 
             if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
-                // Sử dụng kích thước thực của video nếu có
                 const videoAspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
                 newWidth = Math.min(videoRef.current.videoWidth, containerWidth);
                 newHeight = newWidth / videoAspectRatio;
             } else {
-                // Sử dụng tỷ lệ mặc định nếu chưa có kích thước thực
                 newWidth = containerWidth;
                 newHeight = containerWidth / DEFAULT_ASPECT_RATIO;
             }
 
-            // Đảm bảo video không cao hơn container
             if (newHeight > containerHeight) {
                 newHeight = containerHeight;
                 newWidth = newHeight * (videoRef.current?.videoWidth / videoRef.current?.videoHeight || DEFAULT_ASPECT_RATIO);
@@ -303,7 +367,7 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     };
 
     useEffect(() => {
-        updateVideoSize(); // Gọi ngay lập tức để set kích thước ban đầu
+        updateVideoSize();
         window.addEventListener('resize', updateVideoSize);
 
         return () => {
@@ -326,7 +390,8 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
 
     useEffect(() => {
         video = videoData?.getVideo;
-        if (video && localLikeCount === 0) {
+        if (video) {
+
             setLocalViews(video.views);
             setLocalIsLiked(video.isLiked);
             setLocalIsFollowed(video.user.isFollowed);
@@ -334,11 +399,108 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
             setLocalCommentsCount(video.commentsCount);
             setLocalSavesCount(video.savesCount);
             setLocalLikeCount(video.likeCount);
-            console.log(video)
         }
-    }, [videoData, navigate]);
+        // if (video && localLikeCount === 0) {
+        //     console.log(video)
+        // }
+    }, [videoData, navigate, id]);
 
 
+    const toggleMute = () => {
+        setIsMuted(!isMuted);
+    };
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.muted = isMuted;
+        }
+    }, [isMuted]);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.play().catch(error => {
+                console.log("Autoplay was prevented:", error);
+            });
+        }
+    }, [videoData]);
+    const handleUpClick = () => {
+        console.log(video?.prevVideo?.id)
+        if (video?.prevVideo?.id)
+            navigate(`/${userId}/video/${video?.prevVideo?.id}`);
+    };
+
+    const handleDownClick = () => {
+        console.log(video?.nextVideo?.id)
+        if (video?.nextVideo?.id)
+            navigate(`/${userId}/video/${video?.nextVideo?.id}`);
+    };
+
+
+
+    const handleTouchStart = (e) => {
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e) => {
+        if (touchStartY.current === null) return;
+
+        const touchEndY = e.changedTouches[0].clientY;
+        const diff = touchStartY.current - touchEndY;
+
+        if (Math.abs(diff) > 50) { // Threshold để xác định là thao tác vuốt
+            if (diff > 0) {
+                handleDownClick();
+            } else {
+                handleUpClick();
+            }
+        }
+
+        touchStartY.current = null;
+    };
+
+    const handleKeyDown = useCallback((e) => {
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            handleUpClick();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            handleDownClick();
+        }
+    }, [videoData]);
+
+    useEffect(() => {
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleKeyDown]);
+
+    const handleScrollVideo = useCallback((event) => {
+        event.preventDefault();
+        const now = new Date().getTime();
+        const timeSinceLastScroll = now - lastScrollTime.current;
+
+        if (timeSinceLastScroll > 500) { // Prevent rapid firing
+            lastScrollTime.current = now;
+
+            if (event.deltaY < 0) {
+                handleUpClick();
+            } else if (event.deltaY > 0) {
+                handleDownClick();
+            }
+        }
+    }, [videoData]);
+
+    useEffect(() => {
+        const container = videoContainerRef.current;
+        if (container) {
+            container.addEventListener('wheel', handleScrollVideo, { passive: false });
+        }
+        return () => {
+            if (container) {
+                container.removeEventListener('wheel', handleScrollVideo);
+            }
+        };
+    }, [handleScrollVideo]);
     if (videoLoading || commentsLoading) return <Typography>Loading...</Typography>;
     if (videoError || commentsError) return <Typography>Error loading data</Typography>;
 
@@ -376,9 +538,11 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     };
 
     const handleUnlikeVideo = () => {
-        setLocalIsLiked(false);
-        setLocalLikeCount(pre => pre - 1)
-        unlikeVideo({ variables: { targetId: id } });
+        if (localIsLiked) {
+            setLocalIsLiked(false);
+            setLocalLikeCount(pre => pre - 1)
+            unlikeVideo({ variables: { targetId: id } });
+        }
     }
 
 
@@ -405,58 +569,12 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
         }));
     };
 
-    const renderComment = (comment, isReply = false) => (
-        <Box key={comment.id} sx={{ ml: isReply ? 4 : 0, mt: 2 }}>
-            <Box display="flex" alignItems="center">
-                <Avatar src={comment.user.profilePicture} sx={{ width: 32, height: 32, mr: 1 }} />
-                <Typography variant="subtitle2">{comment.user.username}</Typography>
-            </Box>
-            <Typography variant="body2" sx={{ mt: 1 }}>{comment.content}</Typography>
-            <Box display="flex" alignItems="center" mt={1}>
-                <IconButton size="small" onClick={() => { }}>
-                    <ThumbUpOutlined fontSize="small" />
-                </IconButton>
-                <Typography variant="caption" sx={{ ml: 1 }}>{comment.likeCount} likes</Typography>
-                <Typography variant="caption" sx={{ ml: 2 }}>{moment(comment.createdAt).fromNow()}</Typography>
-                {!isReply && (
-                    <Button size="small" onClick={() => handleReply(comment.id)} sx={{ ml: 2 }}>
-                        Reply
-                    </Button>
-                )}
-            </Box>
-            {!isReply && comment.replies && comment.replies.length > 0 && (
-                <>
-                    <Button
-                        size="small"
-                        onClick={() => toggleCommentExpansion(comment.id)}
-                        startIcon={expandedComments[comment.id] ? <ExpandLess /> : <ExpandMore />}
-                        sx={{ mt: 1 }}
-                    >
-                        {expandedComments[comment.id] ? 'Hide' : 'Show'} {comment.replies.length} replies
-                    </Button>
-                    <Collapse in={expandedComments[comment.id]}>
-                        {comment.replies.map(reply => renderComment(reply, true))}
-                    </Collapse>
-                </>
-            )}
-        </Box>
-    );
-
     const handleBackToHome = () => {
-        navigate(location.state.prevUrl, {
-            state: {
-                isFollowed: localIsFollowed
-            }
-        });
+        navigate(location.state?.prevUrl || `/${userId}` || "/");
     }
 
     const handleVideoDoubleClick = (event) => {
-        // Ngăn chặn hành vi mặc định
         event.preventDefault();
-
-        // handleLikeVideo();
-        // setShowLikeAnimation(true);
-        // setTimeout(() => setShowLikeAnimation(false), 1000);
     };
 
 
@@ -468,17 +586,19 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                 }}>
                     <Box
                         ref={videoContainerRef}
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
                         sx={{
                             position: 'relative',
                             width: '100%',
-                            // paddingTop: '56.25%', // 16:9 aspect ratio
                             aspectRatio: 9 / 16,
                             overflow: 'hidden',
                             backgroundColor: '#000',
                             maxHeight: '90vh',
                             borderRadius: '12px',
-                            overflow: 'hidden',
-                        }}><Box
+                        }}
+                    >
+                        <Box
                             sx={{
                                 position: 'absolute',
                                 top: 0,
@@ -537,18 +657,21 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 ref={videoRef}
                                 src={video?.videoUrl}
                                 poster={video?.thumbnailUrl}
-                                controls
                                 onTimeUpdate={handleTimeUpdate}
                                 onSeeked={handleSeeked}
                                 onEnded={handleEnded}
                                 onClick={handleVideoClick}
                                 onDoubleClick={handleVideoDoubleClick}
+                                onLoadedData={handleVideoLoaded}
                                 style={{
                                     maxWidth: '100%',
                                     maxHeight: '100%',
                                     width: videoSize.width,
                                     height: videoSize.height,
                                 }}
+                                loop
+                                playsInline
+                                muted={isMuted}
                             />
                             {showLikeAnimation && (
                                 <Heart
@@ -566,14 +689,60 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 />
                             )}
                         </Box>
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                right: 10,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 1,
+                                zIndex: 10,
+                            }}
+                        >
+                            <IconButton
+                                onClick={handleUpClick}
+                                disabled={!video?.prevVideo}
+                                sx={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
+                                }}
+                            >
+                                <ChevronUp />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleDownClick}
+                                disabled={!video?.nextVideo}
+                                sx={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
+                                }}
+                            >
+                                <ChevronDown />
+                            </IconButton>
+                        </Box>
+                        <IconButton
+                            onClick={toggleMute}
+                            sx={{
+                                position: 'absolute',
+                                bottom: 10,
+                                right: 10,
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
+                                zIndex: 10,
+                            }}
+                        >
+                            {isMuted ? <VolumeX /> : <Volume2 />}
+                        </IconButton>
                     </Box>
                 </Grid>
                 <Grid item xs={12} md={4} sx={{
-                    padding: 2
+                    padding: 2,
+                    display: { xs: 'none', sm: 'block' }
                 }}>
                     <Card sx={{ height: '90vh', display: 'flex', flexDirection: 'column' }}>
                         <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            {/* User info and follow button */}
                             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                                 <Box display="flex" alignItems="center">
                                     <Avatar src={video.user.profilePicture} sx={{ width: 40, height: 40, mr: 1 }} />
@@ -587,12 +756,9 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 </Button>
                             </Box>
 
-                            {/* Video title */}
                             <Typography variant="h6" sx={{ mb: 2 }}>{video.title}</Typography>
 
                             <Divider sx={{ mb: 2 }} />
-
-                            {/* Like, comment, save buttons */}
                             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                                 <Box>
                                     <IconButton onClick={localIsLiked ? handleUnlikeVideo : handleLikeVideo}>
@@ -622,15 +788,45 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 </Box>
                                 <Typography variant="subtitle2">Đăng {moment(video.createdAt).fromNow()}</Typography>
                             </Box>
-
-                            {/* Comments section */}
                             <Typography variant="h6" sx={{ mb: 2 }}>Bình luận ({localCommentsCount})</Typography>
-                            <Box sx={{ flex: 1, overflowY: 'auto', mb: 2 }}>
-                                {commentsData?.getVideoComments.map(comment => renderComment(comment))}
+                            <Box
+                                ref={commentsContainerRef}
+                                sx={{
+                                    flex: 1,
+                                    overflowY: 'auto',
+                                    mb: 2,
+                                    '&::-webkit-scrollbar': {
+                                        width: '0.4em'
+                                    },
+                                    '&::-webkit-scrollbar-track': {
+                                        boxShadow: 'inset 0 0 6px rgba(0,0,0,0.00)',
+                                        webkitBoxShadow: 'inset 0 0 6px rgba(0,0,0,0.00)'
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                        backgroundColor: 'rgba(0,0,0,.1)',
+                                        outline: '1px solid slategrey'
+                                    }
+                                }}
+                            >
+                                {comments.map(comment => <Comment
+                                    key={comment.id}
+                                    comment={comment}
+                                    handleReply={handleReply}
+                                    toggleCommentExpansion={toggleCommentExpansion}
+                                    expandedComments={expandedComments}
+                                />)}
+                                {commentsLoading && (
+                                    <Box display="flex" justifyContent="center" my={2}>
+                                        <CircularProgress size={24} />
+                                    </Box>
+                                )}
+                                {!hasMore && (
+                                    <Typography variant="body2" textAlign="center" my={2}>
+                                        No more comments to load
+                                    </Typography>
+                                )}
                             </Box>
                         </CardContent>
-
-                        {/* Fixed comment input at the bottom */}
                         <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <TextField
@@ -659,7 +855,6 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                     </Card>
                 </Grid>
             </Grid>
-
         </Box>
     );
 };

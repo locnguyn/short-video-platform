@@ -1,25 +1,13 @@
-import { gql, useMutation } from "@apollo/client";
+import { useMutation } from "@apollo/client";
 import { Avatar, Box, Button, Divider, Typography, useTheme } from "@mui/material";
 import StyledForm from "../styledComponents/StyledForm";
 import StyledTextField from "../styledComponents/StyledTextField";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Facebook, Google } from "@mui/icons-material";
 import OAuth2 from "../OAuth2";
+import { REGISTER_USER } from "../../GraphQLQueries/userQueries";
 
-const REGISTER_USER = gql`
-  mutation RegisterUser($username: String!, $email: String!, $password: String!, $avatarFile: Upload) {
-    registerUser(username: $username, email: $email, password: $password, avatarFile: $avatarFile) {
-      token
-      user {
-        id
-        username
-        email
-        profilePicture
-      }
-    }
-  }
-`;
+
 
 const RegisterForm = ({ onSuccess }) => {
     const theme = useTheme();

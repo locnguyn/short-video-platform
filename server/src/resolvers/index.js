@@ -8,6 +8,8 @@ import followService from '../services/followService.js';
 import categoryService from '../services/categoryService.js';
 import saveService from '../services/saveService.js';
 import viewService from '../services/viewService.js';
+import { subscribe } from 'graphql';
+import pubsub from './pubsub.js';
 
 
 const resolvers = {
@@ -21,11 +23,21 @@ const resolvers = {
             console.log(limit)
             return videoService.getUserVideos(id, page, limit);
         },
+        getNextUserVideo: async (_, { currentVideoCreatedAt, userId }) => {
+            const createdAt = new Date(currentVideoCreatedAt);
+            return videoService.getNextUserVideo(createdAt, userId);
+        },
         getVideo: async (_, { id }) => {
             return videoService.getVideo(id);
         },
-        getRecommendedVideos: async (_, { userId }) => {
-            return videoService.getRecommendedVideos(userId);
+        getRecommendedVideos: async (_, { limit }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to get recommended videos');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return videoService.getRecommendedVideos(context.user.id, limit);
         },
         getCategories: async (_, __, { user, tokenError }) => {
             if (tokenError) {
@@ -65,7 +77,7 @@ const resolvers = {
             }
             return likeService.likeVideo(targetId, context.user.id);
         },
-        unlikeVideo:  async (_, { targetId }, context) => {
+        unlikeVideo: async (_, { targetId }, context) => {
             if (!context.user) {
                 throw new Error('You must be logged in to like a video');
             }
@@ -83,16 +95,47 @@ const resolvers = {
             }
             return viewService.viewVideo(context.user.id, videoId);
         },
-        likeComment: likeService.likeComment,
-        unlikeComment: likeService.unlikeComment,
+        likeComment: async (_, { targetId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to like comment');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return likeService.likeComment(context.user.id, targetId);
+        },
+        unlikeComment: async (_, { targetId }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to unlike comment');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return likeService.unlikeComment(context.user.id, targetId);
+        },
         addComment: async (_, { videoId, content, parentCommentId }, context) => {
             if (!context.user) {
                 throw new Error('You must be logged in to comment on video');
             }
             if (context.tokenError) {
-                throw new Error(tokenError);
+                throw new Error(context.tokenError);
             }
-            return commentService.addComment(videoId, content, parentCommentId, context.user.id);
+            let newComment = await commentService.addComment(videoId, content, parentCommentId, context.user.id);
+
+            // Ensure replies is included
+            newComment = {
+                ...newComment.toObject(),
+                id: newComment._id,
+                replies: [],
+            };
+
+            console.log(newComment);
+            pubsub.publish('COMMENT_ADDED', {
+                commentAdded: newComment,
+                videoId
+            });
+
+            return newComment;
         },
         followUser: async (_, { followingId }, context) => {
             if (!context.user) {
@@ -167,7 +210,13 @@ const resolvers = {
         },
         category: async (parent, _) => {
             return categoryService.getCategory(parent.category);
-        }
+        },
+        nextVideo: async (parent, _) => {
+            return videoService.getNextUserVideo(parent.createdAt, parent.user._id);
+        },
+        prevVideo: async (parent, _) => {
+            return videoService.getPrevUserVideo(parent.createdAt, parent.user._id);
+        },
     },
     Comment: {
         replies: (parent, _) => {
@@ -176,7 +225,20 @@ const resolvers = {
         user: async (parent, _) => {
             return userService.getUser(parent.userId);
         },
-    }
+        parentComment: async (parent, _) => {
+            return commentService.getComment(parent.parentCommentId);
+        },
+        isLiked: async (parent, _, context) => {
+            return commentService.isLiked(context.user.id, parent._id);
+        },
+    },
+    Subscription: {
+        commentAdded: {
+            subscribe: (_, { videoId }, context) => {
+                return pubsub.asyncIterator('COMMENT_ADDED');
+            },
+        },
+    },
 };
 
 export default resolvers;

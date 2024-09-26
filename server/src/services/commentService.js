@@ -54,11 +54,22 @@ const getVideoComments = async (videoId, page, limit) => {
 };
 
 const getChildrenComments = async (commentId) => {
-    return models.Comment.find({parentCommentId: commentId});
+    return await models.Comment.find({parentCommentId: commentId});
+};
+
+const getComment = async (commentId) => {
+    return await models.Comment.findById(commentId);
+};
+
+const isLiked = async (userId, commentId) => {
+    const like = await models.Like.findOne({user: userId, targetId: commentId, targetType: 'Comment'});
+    return !!like;
 };
 
 export default {
     addComment,
     getVideoComments,
-    getChildrenComments
+    getChildrenComments,
+    getComment,
+    isLiked,
 }

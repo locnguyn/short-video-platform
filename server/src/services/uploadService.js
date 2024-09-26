@@ -36,6 +36,7 @@ const uploadToS3 = async (file, folder = 'upload') => {
 
         const result = await upload.done();
         console.log(`File uploaded successfully. S3 URL: ${result.Location}`);
+        
         return result;
     } catch (error) {
         console.error("Error uploading file to S3:", error);

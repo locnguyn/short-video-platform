@@ -82,7 +82,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
                 position: 'relative',
                 width: '100%',
                 maxWidth: 300,
-                aspectRatio: '9/16',
+                aspectRatio: '12/16',
                 cursor: 'pointer',
                 margin: 'auto',
                 overflow: 'hidden',

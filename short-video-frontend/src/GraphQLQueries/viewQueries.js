@@ -5,3 +5,9 @@ export const VIEW_VIDEO = gql`
     viewVideo(videoId: $videoId)
   }
 `;
+
+export const GET_NEXT_USER_VIDEO = gql`
+  mutation GetNextUserVideo($currentVideoCreatedAt: String!, $userId: ID!) {
+    getNextUserVideo(currentVideoCreatedAt: $currentVideoCreatedAt, userId: $userId)
+  }
+`;

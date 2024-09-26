@@ -1,50 +1,52 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, debounce, Typography } from '@mui/material';
 import ShortVideoComponent from '../components/VideoDetails';
 import VideoPlayer from '../components/VideoPlayer';
-
+import { useQuery } from '@apollo/client';
+import { GET_RECOMMENDED_VIDEOS } from '../GraphQLQueries/videoQueries';
+const VIDEOS_PER_PAGE = 10;
 const HomePage = () => {
     const [videos, setVideos] = useState([]);
-    const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoStates, setVideoStates] = useState({});
     const [scrollPosition, setScrollPosition] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const containerRef = useRef(null);
     const loadingRef = useRef(false);
 
-    const loadVideos = useCallback(async () => {
-        if (loadingRef.current) return;
-        loadingRef.current = true;
-        setLoading(true);
-        try {
-            const newVideos = await fetchVideos(page);
-            setVideos(prevVideos => [...prevVideos, ...newVideos]);
-            setPage(prevPage => prevPage + 1);
-            console.log(page);
-        } finally {
-            setLoading(false);
-            loadingRef.current = false;
+    const { loading: videoLoading, error: videoError, data, fetchMore } = useQuery(GET_RECOMMENDED_VIDEOS, {
+        variables: {
+            limit: VIDEOS_PER_PAGE
         }
-    }, [page]);
+    })
+
+    const loadMore = useCallback(debounce(() => {
+        if (!hasMore || videoLoading) return;
+        fetchMore({
+            variables: {
+                limit: VIDEOS_PER_PAGE,
+            },
+        }).then((fetchMoreResult) => {
+            const newVideos = fetchMoreResult.data.getRecommendedVideos;
+        console.log(newVideos)
+            if (newVideos.length > 0) {
+                setVideos(pre => [...pre, ...newVideos]);
+                setHasMore(newVideos.length === VIDEOS_PER_PAGE);
+            } else {
+                setHasMore(false);
+            }
+        });
+    }, 100), [fetchMore, hasMore, videoLoading, videos]);
 
     useEffect(() => {
-        loadVideos();
-    }, []);
+        if (data?.getRecommendedVideos) {
+            console.log(data.getRecommendedVideos);
+            setVideos(data.getRecommendedVideos);
+            setHasMore(data.getRecommendedVideos.length >= VIDEOS_PER_PAGE);
+        }
+    }, [data]);
 
-
-    const fetchVideos = async (page) => {
-        // Giả lập API call
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve([
-                    { id: page * 3 - 2, title: `Video ${page * 3 - 2}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 2}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/39564c71-bc55-4832-a837-c192413ce42c-1.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101103Z&X-Amz-Expires=3600&X-Amz-Signature=4d6a134a93b8133bb409413bbff18551356a2c77b6611d426d495af2d95b0f79&X-Amz-SignedHeaders=host&x-id=GetObject" },
-                    { id: page * 3 - 1, title: `Video ${page * 3 - 1}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3 - 1}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/01708618-4837-46c5-8b82-ad99d75b357c-videoplayback.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101141Z&X-Amz-Expires=3600&X-Amz-Signature=3a00def2ffbe1b961d2232d78de10fea5911b601fad1841052f7f0b66167ec66&X-Amz-SignedHeaders=host&x-id=GetObject" },
-                    { id: page * 3, title: `Video ${page * 3}`, views: Math.floor(Math.random() * 1000000), thumbnail: `https://picsum.photos/id/${page * 3}/1080/1920`, videoUrl: "https://s3.ap-southeast-1.amazonaws.com/locshortvideo.com/01708618-4837-46c5-8b82-ad99d75b357c-videoplayback.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIASU566UIPCGQZBM3T%2F20240916%2Fap-southeast-1%2Fs3%2Faws4_request&X-Amz-Date=20240916T101141Z&X-Amz-Expires=3600&X-Amz-Signature=3a00def2ffbe1b961d2232d78de10fea5911b601fad1841052f7f0b66167ec66&X-Amz-SignedHeaders=host&x-id=GetObject" },
-                ]);
-            }, 1000);
-        });
-    };
 
     useEffect(() => {
         if (!selectedVideo && containerRef.current) {
@@ -53,7 +55,7 @@ const HomePage = () => {
     }, [selectedVideo, scrollPosition]);
 
     const handleSmoothScroll = useCallback((event) => {
-        console.log('handleSmoothScroll')
+        console.log(videos)
         event.preventDefault();
         const container = containerRef.current;
         const videoHeight = container.clientHeight;
@@ -80,7 +82,7 @@ const HomePage = () => {
         if (!container) return;
         const { scrollTop, scrollHeight, clientHeight } = container;
         if (scrollHeight - scrollTop <= clientHeight + 100) {
-            loadVideos();
+            loadMore();
         }
     }, [])
 
@@ -95,7 +97,7 @@ const HomePage = () => {
             container.removeEventListener('wheel', handleSmoothScroll);
             container.removeEventListener('scroll', handleScroll);
         };
-    }, [handleSmoothScroll, loadVideos, handleScroll]);
+    }, [handleSmoothScroll, loadMore, handleScroll]);
 
     const handleVideoClick = useCallback((video, videoRef) => {
         if (containerRef.current) {
@@ -140,14 +142,14 @@ const HomePage = () => {
             />
         );
     }
-
+    if (videoError) return <Typography color="error">Error: {videoError.message}</Typography>;
     return (
         <Box
             ref={containerRef}
             sx={{
                 height: 'calc(100vh - 64px)',
                 scrollSnapType: 'y mandatory',
-                overflowY: 'auto',
+                overflowY: 'hidden',
                 '&::-webkit-scrollbar': {
                     width: '6px',
                     backgroundColor: 'transparent',

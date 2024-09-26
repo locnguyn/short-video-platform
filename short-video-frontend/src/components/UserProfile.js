@@ -1,47 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery, gql, useMutation } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { Box, Typography, CircularProgress, Grid, Card, Container, Avatar, Button, useTheme } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import VideoPreview from './VideoPreview';
 import { debounce } from 'lodash';
 import { FOLLOW_USER, UNFOLLOW_USER } from '../GraphQLQueries/followQueries';
+import {  GET_USER_PROFILE } from '../GraphQLQueries/userQueries';
+import { GET_USER_VIDEO } from '../GraphQLQueries/videoQueries';
 
-const GET_USER_PROFILE = gql`
-    query GetUser($userId: String!) {
-        getUser(id: $userId) {
-            id
-            username
-            email
-            profilePicture
-            followerCount
-            followingCount
-            isFollowed
-        }
-    }
-`;
 
-const GET_USER_VIDEO = gql`
-    query GetUserVideos($id: String!, $page: Int!, $limit: Int!) {
-        getUserVideos(id: $id, page: $page, limit: $limit) {
-            id
-            thumbnailUrl
-            views
-            videoUrl
-            likeCount
-            isViewed
-        }
-    }
-`;
-
-const VIDEOS_PER_PAGE = 12;
+const VIDEOS_PER_PAGE = 18;
 
 const UserInfo = ({ userId }) => {
     const theme = useTheme();
     const { data } = useQuery(GET_USER_PROFILE, {
         variables: { userId },
     });
-    const navigate = useNavigate();
-    const location = useLocation();
 
     const [followUser] = useMutation(FOLLOW_USER);
     const [unfollowUser] = useMutation(UNFOLLOW_USER);
@@ -115,6 +89,7 @@ const UserInfo = ({ userId }) => {
                             '&:hover': {
                                 backgroundColor: localIsFollowed ? theme.palette.primary.light : theme.palette.primary.dark,
                             },
+                            maxWidth: '200px',
                         }}
                         onClick={localIsFollowed ? handleUnfollowUser : handleFollowUser}
                     >
@@ -147,51 +122,50 @@ const UserProfile = () => {
         skip: videos.length > 0, // Skip the initial query if we have videos in state
     });
 
-    useEffect(() => {
-        // Try to load saved state when component mounts
-        const savedState = sessionStorage.getItem(`userProfile_${userId}`);
-        if (savedState) {
-            const { videos: savedVideos, page: savedPage, hasMore: savedHasMore } = JSON.parse(savedState);
-            setVideos(savedVideos);
-            setPage(savedPage);
-            setHasMore(savedHasMore);
-        }
-    }, [userId]);
+    // useEffect(() => {
+    //     // Try to load saved state when component mounts
+    //     const savedState = sessionStorage.getItem(`userProfile_${userId}`);
+    //     if (savedState) {
+    //         const { videos: savedVideos, page: savedPage, hasMore: savedHasMore } = JSON.parse(savedState);
+    //         setVideos(savedVideos);
+    //         setPage(savedPage);
+    //         setHasMore(savedHasMore);
+    //     }
+    // }, [userId]);
 
-    useEffect(() => {
-        // Save state when component updates
-        const state = { videos, page, hasMore };
-        sessionStorage.setItem(`userProfile_${userId}`, JSON.stringify(state));
-    }, [userId, videos, page, hasMore]);
+    // useEffect(() => {
+    //     // Save state when component updates
+    //     const state = { videos, page, hasMore };
+    //     sessionStorage.setItem(`userProfile_${userId}`, JSON.stringify(state));
+    // }, [userId, videos, page, hasMore]);
 
     useEffect(() => {
         if (data?.getUserVideos) {
             setVideos(data.getUserVideos);
-            setHasMore(data.getUserVideos.length === VIDEOS_PER_PAGE);
+            setHasMore(data.getUserVideos.length >= VIDEOS_PER_PAGE);
         }
     }, [data]);
-
-    console.log("render")
 
     const loadMore = useCallback(debounce(() => {
         if (!hasMore || loading) return;
 
         fetchMore({
             variables: {
+                id: userId,
                 page: page + 1,
                 limit: VIDEOS_PER_PAGE,
             },
         }).then((fetchMoreResult) => {
             const newVideos = fetchMoreResult.data.getUserVideos;
             if (newVideos.length > 0) {
-                setVideos([...videos, ...newVideos]);
+                setVideos(pre => [...pre, ...newVideos]);
                 setPage(page + 1);
                 setHasMore(newVideos.length === VIDEOS_PER_PAGE);
             } else {
                 setHasMore(false);
             }
         });
-    }, 200), [hasMore, loading, page, videos]);
+    }, 100), [fetchMore, hasMore, loading, page, videos]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -217,7 +191,7 @@ const UserProfile = () => {
         <Container maxWidth="lg">
             <Box sx={{ flexGrow: 1, p: 3 }}>
                 <UserInfo userId={userId} />
-                <Grid container spacing={1}>
+                <Grid container spacing={0.5}>
                     {videos.map((video) => (
                         <Grid item xs={4} sm={3} md={3} lg={2} key={video.id}>
                             <VideoPreview
