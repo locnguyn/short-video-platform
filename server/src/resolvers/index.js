@@ -19,6 +19,15 @@ const resolvers = {
             console.log(id)
             return userService.getUser(id, user.id);
         },
+        verifyToken: async (_, __, context) => {
+            if (!context.user) {
+                throw new Error('Token expired!');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return userService.getUser(context.user.id, context.user.id);
+        },
         getUserVideos: async (_, { id, page, limit }, { user }) => {
             console.log(limit)
             return videoService.getUserVideos(id, page, limit);

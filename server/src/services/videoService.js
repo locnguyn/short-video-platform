@@ -38,70 +38,117 @@ const getRecommendedVideos = async (userId, limit = 10) => {
     // Get user's liked videos
     const likedVideoIds = await models.Like.distinct('targetId', { user: userId, targetType: 'Video' });
 
-    // Get user's interests (categories and tags) from viewed and liked videos
-    const userInterests = await models.Video.aggregate([
-      {
-        $match: {
-          $or: [
-            { _id: { $in: viewedVideoIds } },
-            { _id: { $in: likedVideoIds } }
-          ]
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          categories: { $addToSet: '$category' },
-          tags: { $addToSet: '$tags' }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          categories: 1,
-          tags: { $reduce: {
-            input: '$tags',
-            initialValue: [],
-            in: { $setUnion: ['$$value', '$$this'] }
-          }}
-        }
-      }
-    ]);
+    let recommendedVideos;
 
-    const { categories, tags } = userInterests[0] || { categories: [], tags: [] };
-
-    // Find recommended videos
-    const recommendedVideos = await models.Video.aggregate([
-      {
-        $match: {
-          _id: { $nin: [...viewedVideoIds, ...likedVideoIds] },
-          $or: [
-            { category: { $in: categories } },
-            { tags: { $in: tags } }
-          ]
-        }
-      },
-      {
-        $addFields: {
-          score: {
-            $add: [
-              { $multiply: ['$views', 0.5] },
-              { $multiply: ['$likeCount', 2] },
-              {
-                $cond: [
-                  { $in: ['$category', categories] },
-                  10,
-                  0
-                ]
-              },
+    // Check if the user has any viewing or liking history
+    if (viewedVideoIds.length === 0 && likedVideoIds.length === 0) {
+      // For new users or users without activity, recommend popular videos
+      recommendedVideos = await models.Video.aggregate([
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $multiply: ['$views', 0.5] },
+                { $multiply: ['$likeCount', 2] }
+              ]
+            },
+            id: "$_id"
+          }
+        },
+        { $sort: { score: -1 } },
+        { $limit: limit }
+      ]);
+    } else {
+      // For users with activity, use the existing recommendation logic
+      const userInterests = await models.Video.aggregate([
+        {
+          $match: {
+            $or: [
+              { _id: { $in: viewedVideoIds } },
+              { _id: { $in: likedVideoIds } }
             ]
-          },
-          id: "$_id",
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            categories: { $addToSet: '$category' },
+            tags: { $addToSet: '$tags' }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            categories: 1,
+            tags: { $reduce: {
+              input: '$tags',
+              initialValue: [],
+              in: { $setUnion: ['$$value', '$$this'] }
+            }}
+          }
         }
-      },
-      { $sort: { score: -1 } },
-      { $limit: limit },
-    ]);
+      ]);
+
+      const { categories, tags } = userInterests[0] || { categories: [], tags: [] };
+
+      recommendedVideos = await models.Video.aggregate([
+        {
+          $match: {
+            _id: { $nin: [...viewedVideoIds, ...likedVideoIds] },
+            $or: [
+              { category: { $in: categories } },
+              { tags: { $in: tags } }
+            ]
+          }
+        },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $multiply: ['$views', 0.5] },
+                { $multiply: ['$likeCount', 2] },
+                {
+                  $cond: [
+                    { $in: ['$category', categories] },
+                    10,
+                    0
+                  ]
+                },
+              ]
+            },
+            id: "$_id",
+          }
+        },
+        { $sort: { score: -1 } },
+        { $limit: limit },
+      ]);
+    }
+
+    // If we still don't have enough recommendations, fill with popular videos
+    if (recommendedVideos.length < limit) {
+      const additionalVideos = await models.Video.aggregate([
+        {
+          $match: {
+            _id: { $nin: [...recommendedVideos.map(v => v._id), ...viewedVideoIds, ...likedVideoIds] }
+          }
+        },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $multiply: ['$views', 0.5] },
+                { $multiply: ['$likeCount', 2] }
+              ]
+            },
+            id: "$_id"
+          }
+        },
+        { $sort: { score: -1 } },
+        { $limit: limit - recommendedVideos.length }
+      ]);
+
+      recommendedVideos = [...recommendedVideos, ...additionalVideos];
+    }
 
     return recommendedVideos;
   } catch (error) {

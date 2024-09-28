@@ -1,5 +1,16 @@
 import { gql } from "@apollo/client";
 
+export const VERIFY_TOKEN = gql`
+  query VerifyToken {
+    verifyToken {
+      id
+      username
+      email
+      profilePicture
+    }
+  }
+`;
+
 export const GET_USER_PROFILE = gql`
     query GetUser($userId: String!) {
         getUser(id: $userId) {

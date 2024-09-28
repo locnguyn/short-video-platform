@@ -139,6 +139,7 @@ const typeDefs = gql`
 
   type Query {
     getUser(id: String!): User
+    verifyToken: User
     getUserVideos(id: String!, page: Int!, limit: Int!): [Video!]!
     getNextUserVideo(currentVideoCreatedAt: String!, userId: ID!): Video
     getUserFollowers(userId: ID!, first: Int, after: String): FollowConnection!

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import { Box, CircularProgress, debounce, Typography } from '@mui/material';
 import ShortVideoComponent from '../components/VideoDetails';
 import VideoPlayer from '../components/VideoPlayer';
 import { useQuery } from '@apollo/client';
 import { GET_RECOMMENDED_VIDEOS } from '../GraphQLQueries/videoQueries';
+import CommentContext from '../contexts/commentContext';
 const VIDEOS_PER_PAGE = 10;
 const HomePage = () => {
     const [videos, setVideos] = useState([]);
@@ -12,6 +13,7 @@ const HomePage = () => {
     const [videoStates, setVideoStates] = useState({});
     const [scrollPosition, setScrollPosition] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
     const containerRef = useRef(null);
     const loadingRef = useRef(false);
 
@@ -19,17 +21,21 @@ const HomePage = () => {
         variables: {
             limit: VIDEOS_PER_PAGE
         }
-    })
+    });
+
+    const { showCommentVideoId } = useContext(CommentContext);
 
     const loadMore = useCallback(debounce(() => {
-        if (!hasMore || videoLoading) return;
+        console.log(hasMore);
+        if (!hasMore) return;
+        console.log('Loading video');
         fetchMore({
             variables: {
                 limit: VIDEOS_PER_PAGE,
             },
         }).then((fetchMoreResult) => {
             const newVideos = fetchMoreResult.data.getRecommendedVideos;
-        console.log(newVideos)
+            console.log(newVideos)
             if (newVideos.length > 0) {
                 setVideos(pre => [...pre, ...newVideos]);
                 setHasMore(newVideos.length === VIDEOS_PER_PAGE);
@@ -40,7 +46,7 @@ const HomePage = () => {
     }, 100), [fetchMore, hasMore, videoLoading, videos]);
 
     useEffect(() => {
-        if (data?.getRecommendedVideos) {
+        if (data?.getRecommendedVideos.length > 0) {
             console.log(data.getRecommendedVideos);
             setVideos(data.getRecommendedVideos);
             setHasMore(data.getRecommendedVideos.length >= VIDEOS_PER_PAGE);
@@ -55,7 +61,7 @@ const HomePage = () => {
     }, [selectedVideo, scrollPosition]);
 
     const handleSmoothScroll = useCallback((event) => {
-        console.log(videos)
+        console.log(videos, hasMore)
         event.preventDefault();
         const container = containerRef.current;
         const videoHeight = container.clientHeight;
@@ -68,23 +74,45 @@ const HomePage = () => {
                 top: targetScroll + videoHeight,
                 behavior: 'smooth'
             });
+            // setCurrentVideoIndex(prev => Math.min(prev + 1, videos.length - 1));
         } else if (event.deltaY < 0 && currentScroll > 0) {
             // Scroll up
             container.scrollTo({
                 top: targetScroll - videoHeight,
                 behavior: 'smooth'
             });
+            // setCurrentVideoIndex(prev => Math.max(prev - 1, 0));
         }
-    }, []);
+
+        if (!container) return;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        if (scrollHeight - scrollTop <= clientHeight + 100) {
+            console.log('Scroll to bottom of container');
+            loadMore();
+        }
+    }, [videos, loadMore]);
+
+    useEffect(() => {
+        if (videos[currentVideoIndex]) {
+            showCommentVideoId(videos[currentVideoIndex].id);
+        }
+    }, [currentVideoIndex, videos, showCommentVideoId]);
 
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
         if (!container) return;
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        if (scrollHeight - scrollTop <= clientHeight + 100) {
+
+        const { scrollTop, clientHeight } = container;
+        const newIndex = Math.round(scrollTop / clientHeight);
+
+        // if (newIndex !== currentVideoIndex) {
+        //     setCurrentVideoIndex(newIndex);
+        // }
+
+        if (container.scrollHeight - scrollTop <= clientHeight + 100) {
             loadMore();
         }
-    }, [])
+    }, [currentVideoIndex, loadMore]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -189,8 +217,8 @@ const HomePage = () => {
                     />
                 </Box>
             ))}
-            {loading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+            {videoLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
                     <CircularProgress />
                 </Box>
             )}

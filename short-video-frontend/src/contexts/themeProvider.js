@@ -38,7 +38,7 @@ export const ToggleColorMode = ({ children }) => {
             paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
           },
           text: {
-            primary: mode === 'light' ? '#333333' : '#ffffff',
+            primary: mode === 'light' ? '#444' : '#ffffff',
             secondary: mode === 'light' ? '#757575' : '#b0b0b0',
           },
           custom: {
@@ -46,6 +46,7 @@ export const ToggleColorMode = ({ children }) => {
             search: mode === 'light' ? '#f1f1f2' : '#2f2f2f',
             icon: mode === 'light' ? '#757575' : '#b0b0b0',
             hover: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+            playButton: "#FFF"
           },
         },
         shape: {
@@ -64,6 +65,10 @@ export const ToggleColorMode = ({ children }) => {
           body1: {
             fontSize: '1rem',
             lineHeight: 1.5,
+          },
+          body2: {
+            fontSize: '0.8rem',
+            lineHeight: 1.2,
           },
         },
         components: {

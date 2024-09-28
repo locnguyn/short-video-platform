@@ -33,6 +33,8 @@ import UserContext from '../contexts/userContext';
 import { GET_VIDEO_DETAILS } from '../GraphQLQueries/videoQueries';
 import { LIKE_VIDEO, UNLIKE_VIDEO } from '../GraphQLQueries/likeQueries';
 import Comment from '../components/Comment';
+import LikeAnimation from '../components/LikeAnimation';
+import CommentList from '../components/CommentList';
 moment.locale('vi');
 
 const DEFAULT_ASPECT_RATIO = 9 / 16;
@@ -41,8 +43,6 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     const { id, userId } = useParams();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const [showComments, setShowComments] = useState(true);
-    const [expandedComments, setExpandedComments] = useState({});
     const [videoSize, setVideoSize] = useState({ width: 3000, height: 3000 });
     const [localLikeCount, setLocalLikeCount] = useState(0);
     const [localSavesCount, setLocalSavesCount] = useState(0);
@@ -50,34 +50,18 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     const [localIsLiked, setLocalIsLiked] = useState(false);
     const [localIsFollowed, setLocalIsFollowed] = useState(false);
     const [localIsSaved, setLocalIsSaved] = useState(false);
-    const [commentContent, setCommentContent] = useState('');
-    const [replyingTo, setReplyingTo] = useState(null);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [comments, setComments] = useState([]);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-    const commentsContainerRef = useRef(null);
     const videoRef = useRef(null);
     const videoContainerRef = useRef(null);
     const touchStartY = useRef(null);
     const lastScrollTime = useRef(0);
-
-    const { user } = useContext(UserContext);
 
     const navigate = useNavigate();
     const location = useLocation();
 
     const { data: videoData, loading: videoLoading, error: videoError } = useQuery(GET_VIDEO_DETAILS, {
         variables: { id },
-    });
-
-    const { data: commentsData, loading: commentsLoading, error: commentsError, fetchMore } = useQuery(GET_VIDEO_COMMENTS, {
-        variables: { videoId: id, page: 1, limit: 10 },
-    });
-
-    const { data: subscriptionData } = useSubscription(COMMENT_ADDED_SUBSCRIPTION, {
-        variables: { videoId: id },
     });
 
     const [likeVideo] = useMutation(LIKE_VIDEO);
@@ -87,43 +71,6 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
     const [followUser] = useMutation(FOLLOW_USER);
     const [unfollowUser] = useMutation(UNFOLLOW_USER);
     const [viewVideo] = useMutation(VIEW_VIDEO);
-    const [addComment] = useMutation(ADD_COMMENT, {
-        update(cache, { data: { addComment } }) {
-            const existingComments = cache.readQuery({
-                query: GET_VIDEO_COMMENTS,
-                variables: { videoId: id, page: 1, limit: 10 },
-            });
-
-            if (existingComments) {
-                const newComment = {
-                    ...addComment,
-                    replies: addComment.replies || [],
-                };
-
-                const updatedComments = replyingTo
-                    ? existingComments.getVideoComments.map(comment =>
-                        comment.id === replyingTo
-                            ? {
-                                ...comment,
-                                replies: [...(comment.replies || []), newComment]
-                            }
-                            : comment
-                    )
-                    : [newComment, ...existingComments.getVideoComments];
-
-                const commentsWithReplies = updatedComments.map(comment => ({
-                    ...comment,
-                    replies: comment.replies || [],
-                }));
-
-                cache.writeQuery({
-                    query: GET_VIDEO_COMMENTS,
-                    variables: { videoId: id, page: 1, limit: 10 },
-                    data: { getVideoComments: commentsWithReplies },
-                });
-            }
-        },
-    });
     const [localViews, setLocalViews] = useState(0);
     const [showLikeAnimation, setShowLikeAnimation] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -175,105 +122,6 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
           }
         };
       }, []);
-
-    useEffect(() => {
-        if (subscriptionData && subscriptionData.commentAdded) {
-            const newComment = subscriptionData.commentAdded;
-            if (newComment.user.username !== user.username) {
-                setComments(prevComments => {
-                    if (newComment.level === 0) {
-                        return [newComment, ...prevComments];
-                    } else {
-                        return prevComments.map(comment => {
-                            if (comment.id === newComment.parentComment.id) {
-                                return {
-                                    ...comment,
-                                    replies: [
-                                        ...comment.replies,
-                                        newComment
-                                    ]
-                                };
-                            }
-                            return comment;
-                        });
-                    }
-                });
-                setLocalCommentsCount(prevCount => prevCount + 1);
-            }
-        }
-    }, [subscriptionData]);
-
-    const loadMoreComments = useCallback(debounce(() => {
-        if (!hasMore || commentsLoading) return;
-
-        fetchMore({
-            variables: {
-                videoId: id,
-                page: page + 1,
-                limit: 10
-            },
-        }).then((fetchMoreResult) => {
-            const newComments = fetchMoreResult.data.getVideoComments;
-            if (newComments.length > 0) {
-                console.log(newComments)
-                setComments(pre => [...pre, ...newComments]);
-                setPage(page + 1);
-                setHasMore(newComments.length === 10);
-            } else {
-                setHasMore(false);
-            }
-        });
-    }, 200), [fetchMore, hasMore, commentsLoading, id, page]);
-
-    useEffect(() => {
-        if (commentsData?.getVideoComments) {
-            setComments(commentsData.getVideoComments);
-            setHasMore(commentsData.getVideoComments.length === 10);
-        }
-    }, [commentsData])
-
-    const handleAddComment = async () => {
-        if (commentContent.trim() === '') return;
-
-        try {
-            await addComment({
-                variables: {
-                    videoId: id,
-                    content: commentContent,
-                    parentCommentId: replyingTo,
-                },
-            });
-            setCommentContent('');
-            setReplyingTo(null);
-            setLocalCommentsCount(prevCount => prevCount + 1);
-        } catch (error) {
-            console.error("Error adding comment:", error);
-        }
-    };
-
-    const handleScroll = useCallback(() => {
-        if (commentsContainerRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = commentsContainerRef.current;
-            if (scrollTop + clientHeight >= scrollHeight - 5) {
-                loadMoreComments();
-            }
-        }
-    }, [loadMoreComments]);
-    useEffect(() => {
-        const currentRef = commentsContainerRef.current;
-        if (currentRef) {
-            currentRef.addEventListener('scroll', handleScroll);
-        }
-        return () => {
-            if (currentRef) {
-                currentRef.removeEventListener('scroll', handleScroll);
-            }
-        };
-    }, [handleScroll]);
-
-    const handleReply = (commentId) => {
-        setReplyingTo(commentId);
-    };
 
     const handleVideoClick = (e) => {
         e.preventDefault();
@@ -501,8 +349,8 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
             }
         };
     }, [handleScrollVideo]);
-    if (videoLoading || commentsLoading) return <Typography>Loading...</Typography>;
-    if (videoError || commentsError) return <Typography>Error loading data</Typography>;
+    if (videoLoading) return <Typography>Loading...</Typography>;
+    if (videoError) return <Typography>Error loading data</Typography>;
 
     video = videoData?.getVideo;
 
@@ -557,17 +405,6 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
         setLocalSavesCount(pre => pre - 1)
         unsaveVideo({ variables: { videoId: id } });
     }
-
-    const toggleComments = () => {
-        setShowComments(!showComments);
-    };
-
-    const toggleCommentExpansion = (commentId) => {
-        setExpandedComments(prev => ({
-            ...prev,
-            [commentId]: !prev[commentId]
-        }));
-    };
 
     const handleBackToHome = () => {
         navigate(location.state?.prevUrl || `/${userId}` || "/");
@@ -674,19 +511,7 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 muted={isMuted}
                             />
                             {showLikeAnimation && (
-                                <Heart
-                                    size={100}
-                                    color="red"
-                                    fill="red"
-                                    style={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        opacity: 0,
-                                        animation: 'likeAnimation 1s ease-out',
-                                    }}
-                                />
+                                <LikeAnimation />
                             )}
                         </Box>
                         <Box
@@ -741,8 +566,8 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                     padding: 2,
                     display: { xs: 'none', sm: 'block' }
                 }}>
-                    <Card sx={{ height: '90vh', display: 'flex', flexDirection: 'column' }}>
-                        <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <Card sx={{ height: '20vh', display: 'flex', flexDirection: 'column' }}>
+                        <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', mb: -3 }}>
                             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                                 <Box display="flex" alignItems="center">
                                     <Avatar src={video.user.profilePicture} sx={{ width: 40, height: 40, mr: 1 }} />
@@ -788,71 +613,10 @@ const VideoDetailPage = ({ handleFollowUserParent = () => { }, handleUnfollowUse
                                 </Box>
                                 <Typography variant="subtitle2">Đăng {moment(video.createdAt).fromNow()}</Typography>
                             </Box>
-                            <Typography variant="h6" sx={{ mb: 2 }}>Bình luận ({localCommentsCount})</Typography>
-                            <Box
-                                ref={commentsContainerRef}
-                                sx={{
-                                    flex: 1,
-                                    overflowY: 'auto',
-                                    mb: 2,
-                                    '&::-webkit-scrollbar': {
-                                        width: '0.4em'
-                                    },
-                                    '&::-webkit-scrollbar-track': {
-                                        boxShadow: 'inset 0 0 6px rgba(0,0,0,0.00)',
-                                        webkitBoxShadow: 'inset 0 0 6px rgba(0,0,0,0.00)'
-                                    },
-                                    '&::-webkit-scrollbar-thumb': {
-                                        backgroundColor: 'rgba(0,0,0,.1)',
-                                        outline: '1px solid slategrey'
-                                    }
-                                }}
-                            >
-                                {comments.map(comment => <Comment
-                                    key={comment.id}
-                                    comment={comment}
-                                    handleReply={handleReply}
-                                    toggleCommentExpansion={toggleCommentExpansion}
-                                    expandedComments={expandedComments}
-                                />)}
-                                {commentsLoading && (
-                                    <Box display="flex" justifyContent="center" my={2}>
-                                        <CircularProgress size={24} />
-                                    </Box>
-                                )}
-                                {!hasMore && (
-                                    <Typography variant="body2" textAlign="center" my={2}>
-                                        No more comments to load
-                                    </Typography>
-                                )}
-                            </Box>
                         </CardContent>
-                        <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <TextField
-                                    fullWidth
-                                    variant="outlined"
-                                    placeholder={replyingTo ? "Add a reply..." : "Add a comment..."}
-                                    size="small"
-                                    value={commentContent}
-                                    onChange={(e) => setCommentContent(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleAddComment();
-                                        }
-                                    }}
-                                />
-                                <IconButton sx={{ ml: 1 }} onClick={handleAddComment}>
-                                    <Send />
-                                </IconButton>
-                                {replyingTo && (
-                                    <IconButton sx={{ ml: 1 }} onClick={() => setReplyingTo(null)}>
-                                        <Close />
-                                    </IconButton>
-                                )}
-                            </Box>
-                        </Box>
+                        {/* <CommentInp */}
                     </Card>
+                            <CommentList videoId={id} isDetails={true} />
                 </Grid>
             </Grid>
         </Box>
