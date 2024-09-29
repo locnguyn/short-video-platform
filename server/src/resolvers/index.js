@@ -8,15 +8,16 @@ import followService from '../services/followService.js';
 import categoryService from '../services/categoryService.js';
 import saveService from '../services/saveService.js';
 import viewService from '../services/viewService.js';
-import { subscribe } from 'graphql';
 import pubsub from './pubsub.js';
+import messageService from '../services/messageService.js';
+import conversationService from '../services/conversationService.js';
+import notificationService from '../services/notificationService.js';
 
 
 const resolvers = {
     Upload: GraphQLUpload,
     Query: {
         getUser: async (_, { id }, { user }) => {
-            console.log(id)
             return userService.getUser(id, user.id);
         },
         verifyToken: async (_, __, context) => {
@@ -29,7 +30,6 @@ const resolvers = {
             return userService.getUser(context.user.id, context.user.id);
         },
         getUserVideos: async (_, { id, page, limit }, { user }) => {
-            console.log(limit)
             return videoService.getUserVideos(id, page, limit);
         },
         getNextUserVideo: async (_, { currentVideoCreatedAt, userId }) => {
@@ -59,6 +59,26 @@ const resolvers = {
         },
         getVideoComments: async (_, { videoId, page, limit }, context) => {
             return commentService.getVideoComments(videoId, page, limit);
+        },
+        getUserConversations: async (_, __, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to get conversations');
+            return conversationService.getUserConversations(user.id);
+        },
+        getConversation: async (_, { id }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to get a conversation');
+            return conversationService.getConversation(id, user.id);
+        },
+        getConversationMessages: async (_, { conversationId, page, limit }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to get messages');
+            return messageService.getConversationMessages(conversationId, user.id, page, limit);
+        },
+        notifications: async (_, __, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to get notifications');
+            return notificationService.getUserNotifications(user.id);
         }
     },
     Mutation: {
@@ -84,7 +104,15 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return likeService.likeVideo(targetId, context.user.id);
+            const res = likeService.likeVideo(targetId, context.user.id);
+            if (res) {
+                const t = await notificationService.createLikeNotification(targetId, context.user);
+                console.log(t, "hehehehe__________________");
+                pubsub.publish(`NEW_NOTIFICATION_${t.user}`, {
+                    newNotification: t.notification
+                });
+            }
+            return res;
         },
         unlikeVideo: async (_, { targetId }, context) => {
             if (!context.user) {
@@ -138,7 +166,6 @@ const resolvers = {
                 replies: [],
             };
 
-            console.log(newComment);
             pubsub.publish('COMMENT_ADDED', {
                 commentAdded: newComment,
                 videoId
@@ -181,6 +208,34 @@ const resolvers = {
                 throw new Error(tokenError);
             }
             return saveService.unsaveVideo(context.user.id, videoId);
+        },
+        createConversation: async (_, { participantIds, type, name }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to create a conversation');
+            return conversationService.createConversation(user.id, participantIds, type, name);
+        },
+        sendMessage: async (_, { conversationId, content, contentType }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to send a message');
+            const message = await messageService.sendMessage(user.id, conversationId, content, contentType);
+            pubsub.publish(`NEW_MESSAGE_${conversationId}`, { newMessage: message, conversationId });
+            return message;
+        },
+        markMessageAsRead: async (_, { messageId }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to mark a message as read');
+            return messageService.markMessageAsRead(messageId, user.id);
+        },
+        getOrCreateDirectConversation: async (_, { userId }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to create a conversation');
+            const u = await userService.getUser(userId);
+            return conversationService.getOrCreateDirectConversation(user.id, u._id);
+        },
+        markNotificationAsRead: async (_, { notificationId }, { user, tokenError }) => {
+            if (tokenError) throw new Error(tokenError);
+            if (!user) throw new Error('You must be logged in to mark this notification as read');
+            return notificationService.markNotificationAsRead(notificationId, user.id);
         },
     },
     User: {
@@ -241,10 +296,56 @@ const resolvers = {
             return commentService.isLiked(context.user.id, parent._id);
         },
     },
+    Conversation: {
+        participants: async (parent, _, { user }) => {
+            return userService.getUsersByIds(parent.participants);
+        },
+        lastMessage: async (parent, _, { user }) => {
+            return messageService.getLastMessage(parent.id);
+        },
+    },
+    Message: {
+        sender: async (parent, _, { user }) => {
+            return userService.getUser(parent.sender);
+        },
+        readBy: async (parent, _, { user }) => {
+            return userService.getUsersByIds(parent.readBy);
+        },
+    },
+    Notification: {
+        user: async (parent, _) => {
+            return userService.getUser(parent.user);
+        },
+        actor: async (parent, _) => {
+            return userService.getUser(parent.actor);
+        },
+        video: async (parent, _) => {
+            return videoService.getVideo(parent.video);
+        },
+        comment: async (parent, _) => {
+            return commentService.getComment(parent.comment);
+        },
+    },
     Subscription: {
         commentAdded: {
             subscribe: (_, { videoId }, context) => {
                 return pubsub.asyncIterator('COMMENT_ADDED');
+            },
+        },
+        newMessage: {
+            subscribe: (_, { conversationId }, context) => {
+                return pubsub.asyncIterator(`NEW_MESSAGE_${conversationId}`);
+            },
+        },
+        conversationUpdated: {
+            subscribe: (_, { conversationId }, context) => {
+                return pubsub.asyncIterator(`CONVERSATION_UPDATED_${conversationId}`);
+            },
+        },
+        newNotification: {
+            subscribe: (_, __, { user, tokenError }) => {
+                if (!user) throw new Error("Authentication required");
+                return pubsub.asyncIterator(`NEW_NOTIFICATION_${user.id}`);
             },
         },
     },

@@ -1,5 +1,5 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery, useMutation } from '@apollo/client';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     Box,
@@ -12,10 +12,7 @@ import {
     CardContent,
     useMediaQuery,
     useTheme,
-    Divider,
-    TextField,
-    CircularProgress,
-    debounce
+    Divider
 } from '@mui/material';
 import {
     Bookmark,
@@ -28,11 +25,8 @@ import moment from 'moment';
 import 'moment/locale/vi';
 import { SAVE_VIDEO, UNSAVE_VIDEO } from '../GraphQLQueries/saveQueries';
 import { VIEW_VIDEO } from '../GraphQLQueries/viewQueries';
-import { ADD_COMMENT, COMMENT_ADDED_SUBSCRIPTION, GET_VIDEO_COMMENTS } from '../GraphQLQueries/commentQueries';
-import UserContext from '../contexts/userContext';
 import { GET_VIDEO_DETAILS } from '../GraphQLQueries/videoQueries';
 import { LIKE_VIDEO, UNLIKE_VIDEO } from '../GraphQLQueries/likeQueries';
-import Comment from '../components/Comment';
 import LikeAnimation from '../components/LikeAnimation';
 import CommentList from '../components/CommentList';
 moment.locale('vi');

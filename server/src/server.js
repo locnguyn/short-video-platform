@@ -70,7 +70,6 @@ async function startServer() {
         // Đây là một WebSocket connection
         return connection.context;
       } else {
-        // Đây là một HTTP request
         const token = req.headers.authorization || '';
         let user = null;
         let tokenError = null;

@@ -12,6 +12,8 @@ import { BookmarkBorder } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import CommentList from './CommentList';
 import CommentContext from '../contexts/commentContext';
+import HoverProfileCard from './ProfileCard';
+import LargeNumberDisplay from './LargeNumberDisplay';
 
 const StyledVideo = styled('video')({
   width: '100%',
@@ -56,7 +58,6 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
   const timeWatchedRef = useRef(0);
   const lastUpdateTimeRef = useRef(0);
   const viewCountedRef = useRef(false);
-  const continueScrollRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -77,17 +78,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
-        if (continueScrollRef.current === null) {
-          continueScrollRef.current = setTimeout(() => {
-            continueScrollRef.current = null;
-            showCommentVideoId(video.id);
-          }, 500)
-        } else {
-          clearTimeout(continueScrollRef.current);
-          continueScrollRef.current = null;
-        }
+
       },
-      { threshold: 1 }
+      { threshold: 0.6 }
     );
 
     if (videoRef.current) {
@@ -492,13 +485,7 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
         }}
       >
         <Box>
-          <Avatar
-            src={video.user.profilePicture}
-            sx={{
-              height: 50,
-              width: 50
-            }}
-          />
+          <HoverProfileCard user={video.user} />
         </Box>
         <IconButton
           sx={{
@@ -514,7 +501,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           mt: -1,
           color: theme.palette.text.secondary,
           fontWeight: 'bold'
-        }}>{localLikeCount}</Typography>
+        }}>
+          <LargeNumberDisplay number={localLikeCount*112340} />
+        </Typography>
         <IconButton
           sx={{
             mt: 1
@@ -528,7 +517,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           mt: -1,
           color: theme.palette.text.secondary,
           fontWeight: 'bold'
-        }}>{localViews}</Typography>
+        }}>
+          <LargeNumberDisplay number={localViews*112340} />
+        </Typography>
         <IconButton
           sx={{
             mt: 1
@@ -543,7 +534,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           mt: -1,
           color: theme.palette.text.secondary,
           fontWeight: 'bold'
-        }}>{localCommentsCount}</Typography>
+        }}>
+          <LargeNumberDisplay number={localCommentsCount} />
+        </Typography>
         <IconButton
           sx={{
             mt: 1
@@ -558,7 +551,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           mt: -1,
           color: theme.palette.text.secondary,
           fontWeight: 'bold'
-        }}>{localSavesCount}</Typography>
+        }}>
+          <LargeNumberDisplay number={localSavesCount} />
+        </Typography>
         <IconButton
           sx={{
             mt: 1
@@ -572,7 +567,9 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           mt: -1,
           color: theme.palette.text.secondary,
           fontWeight: 'bold'
-        }}>{localSavesCount}</Typography>
+        }}>
+          <LargeNumberDisplay number={localSavesCount} />
+        </Typography>
         <IconButton
           sx={{
             mt: 1

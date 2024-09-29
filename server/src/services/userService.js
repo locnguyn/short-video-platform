@@ -2,12 +2,13 @@ import models from "../models/index.js";
 import { createToken } from "../utils/jwtTokenUtils.js";
 import bcrypt from 'bcryptjs'
 import uploadService from "./uploadService.js";
+import { isValidObjectId } from "mongoose";
 
 const getUser = async (userId, viewerId) => {
     console.log(userId);
     try {
         let user;
-        user = await models.User.findOne({username: userId});
+        user = await models.User.findOne({ username: userId });
         if (user) {
             return user;
         }
@@ -71,9 +72,49 @@ const loginUser = async (email, password) => {
     }
 }
 
+const getUsersByIds = async (userIds) => {
+    try {
+        const users = await models.User.find(
+            { _id: { $in: userIds } });
+
+        return users;
+    } catch (error) {
+        console.error('Error in getUsersByIds:', error);
+        throw new Error('Failed to fetch users');
+    }
+};
+
+const getUserById = async (userIdInput) => {
+    let userId;
+
+    // Kiểm tra xem đầu vào có phải là đối tượng chứa id không
+    if (typeof userIdInput === 'object' && userIdInput.id) {
+        userId = userIdInput.id;
+    } else {
+        userId = userIdInput;
+    }
+
+    // Kiểm tra tính hợp lệ của userId
+    if (!isValidObjectId(userId)) {
+        throw new Error('Invalid userId format');
+    }
+
+    try {
+        const user = await models.User.findById(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        return user;
+    } catch (error) {
+        console.error('Failed to get user:', error);
+        throw error;
+    }
+};
 
 export default {
     getUser,
     registerUser,
-    loginUser
+    loginUser,
+    getUsersByIds,
+    getUserById
 }

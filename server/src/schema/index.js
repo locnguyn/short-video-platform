@@ -124,17 +124,37 @@ const typeDefs = gql`
     createdAt: Date!
   }
 
-  type Chat {
+  type Conversation {
     id: ID!
     participants: [User!]!
-    messages: [Message!]!
+    type: String
+    name: String
+    lastMessage: Message
+    createdAt: Date!
+    updatedAt: Date!
   }
+
 
   type Message {
     id: ID!
+    conversation: Conversation!
     sender: User!
     content: String!
-    createdAt: String!
+    contentType: String!
+    readBy: [User!]!
+    createdAt: Date!
+  }
+
+  type Notification {
+    id: ID!
+    type: String!
+    content: String!
+    read: Boolean!
+    createdAt: Date!
+    user: User!
+    actor: User
+    video: Video
+    comment: Comment
   }
 
   type Query {
@@ -152,6 +172,10 @@ const typeDefs = gql`
     getCategories: [Category!]!
     getUserInteractions(userId: ID!): [UserInteraction!]!
     getUserPreferences(userId: ID!): [UserPreference!]!
+    getUserConversations: [Conversation!]!
+    getConversation(id: ID!): Conversation
+    getConversationMessages(conversationId: ID!, page: Int, limit: Int): [Message!]!
+    notifications: [Notification!]!
   }
 
   type Mutation {
@@ -171,11 +195,18 @@ const typeDefs = gql`
     unsaveVideo(videoId: ID!): Boolean!
     updateUserPreference(categoryId: ID!, score: Float!): UserPreference!
     recordUserInteraction(videoId: ID!, interactionTypeId: ID!, score: Float): UserInteraction!
+    createConversation(participantIds: [ID!]!, name: String): Conversation!
+    sendMessage(conversationId: ID!, content: String!, contentType: String!): Message!
+    markMessageAsRead(messageId: ID!): Boolean!
+    getOrCreateDirectConversation(userId: String!): Conversation!
+    markNotificationAsRead(notificationId: ID!): Notification!
   }
 
   type Subscription {
     commentAdded(videoId: ID!): Comment!
-    newMessage(chatId: ID!): Message!
+    newMessage(conversationId: ID!): Message!
+    conversationUpdated(conversationId: ID!): Conversation!
+    newNotification: Notification!
   }
 
   type AuthPayload {

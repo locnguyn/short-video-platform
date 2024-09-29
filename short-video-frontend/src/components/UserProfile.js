@@ -5,8 +5,9 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import VideoPreview from './VideoPreview';
 import { debounce } from 'lodash';
 import { FOLLOW_USER, UNFOLLOW_USER } from '../GraphQLQueries/followQueries';
-import {  GET_USER_PROFILE } from '../GraphQLQueries/userQueries';
+import { GET_USER_PROFILE } from '../GraphQLQueries/userQueries';
 import { GET_USER_VIDEO } from '../GraphQLQueries/videoQueries';
+import { Message } from '@mui/icons-material';
 
 
 const VIDEOS_PER_PAGE = 18;
@@ -23,6 +24,8 @@ const UserInfo = ({ userId }) => {
 
     const [localFollowerCount, setLocalFollowerCount] = useState(0);
     const [localIsFollowed, setLocalIsFollowed] = useState(false);
+
+    const navigate = useNavigate();
     const handleFollowUser = async () => {
         try {
             await followUser({
@@ -54,6 +57,10 @@ const UserInfo = ({ userId }) => {
         }
     }, [data])
 
+    const startConversation = () => {
+        navigate(`/messages/${user.username}`);
+    };
+
     // useEffect(() => {
     //     if (location.state) {
     //         console.log(location.state.isFollowed)
@@ -81,20 +88,37 @@ const UserInfo = ({ userId }) => {
                     <Typography variant="body1" color="text.secondary">
                         {user.email}
                     </Typography>
-                    <Button
-                        variant={localIsFollowed ? 'outlined' : 'contained'}
-                        sx={{
-                            backgroundColor: localIsFollowed ? 'transparent' : theme.palette.primary.main,
-                            color: localIsFollowed ? theme.palette.primary.main : theme.palette.primary.contrastText,
-                            '&:hover': {
-                                backgroundColor: localIsFollowed ? theme.palette.primary.light : theme.palette.primary.dark,
-                            },
-                            maxWidth: '200px',
-                        }}
-                        onClick={localIsFollowed ? handleUnfollowUser : handleFollowUser}
-                    >
-                        {localIsFollowed ? 'Hủy theo dõi' : 'Theo dõi'}
-                    </Button>
+                    <Box>
+                        <Button
+                            variant={localIsFollowed ? 'outlined' : 'contained'}
+                            sx={{
+                                backgroundColor: localIsFollowed ? 'transparent' : theme.palette.primary.main,
+                                color: localIsFollowed ? theme.palette.primary.main : theme.palette.primary.contrastText,
+                                '&:hover': {
+                                    backgroundColor: localIsFollowed ? theme.palette.primary.light : theme.palette.primary.dark,
+                                },
+                                maxWidth: '200px',
+                                mr: 1,
+                            }}
+                            onClick={localIsFollowed ? handleUnfollowUser : handleFollowUser}
+                        >
+                            {localIsFollowed ? 'Hủy theo dõi' : 'Theo dõi'}
+                        </Button>
+                        <Button
+                            variant={'contained'}
+                            sx={{
+                                backgroundColor: theme.palette.primary.main,
+                                color: theme.palette.primary.contrastText,
+                                '&:hover': {
+                                    backgroundColor: theme.palette.primary.dark,
+                                },
+                                maxWidth: '200px',
+                            }}
+                            onClick={startConversation}
+                        >
+                            <Message />
+                        </Button>
+                    </Box>
                 </Box>
             </Box>
             <Box sx={{ display: 'flex', mt: 2 }}>

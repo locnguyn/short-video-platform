@@ -10,6 +10,9 @@ import Save from './Save.js';
 import UserInteraction from './UserInteraction.js';
 import UserPreference from './UserPreference.js';
 import View from './View.js';
+import Message from './Message.js';
+import Conversation from './Conversation.js';
+import Notification from './Notification.js';
 
 export default {
   User,
@@ -23,5 +26,8 @@ export default {
   Save,
   Like,
   Recommendation,
-  View
+  View,
+  Message,
+  Conversation,
+  Notification
 };

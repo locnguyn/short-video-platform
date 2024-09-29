@@ -75,6 +75,7 @@ export const GET_RECOMMENDED_VIDEOS = gql`
         username
         profilePicture
         isFollowed
+        followerCount
       }
     }
   }

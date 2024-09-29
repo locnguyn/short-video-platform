@@ -15,6 +15,7 @@ import VideoDetailPage from './pages/VideoDetail';
 import HomeLayout from './layouts/HomeLayout';
 import { VERIFY_TOKEN } from './GraphQLQueries/userQueries'
 import { CircularProgress } from '@mui/material';
+import Messenger from './pages/Messenger';
 
 function useAuth() {
   const [user, userDispatcher] = useReducer(UserReducer, JSON.parse(localStorage.getItem("user")) || null);
@@ -61,6 +62,8 @@ function AuthenticatedApp() {
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="upload" element={<VideoUpload />} />
+            <Route path="messages/:username" element={<Messenger />} />
+            <Route path="messages" element={<Messenger />} />
           </Route>
           <Route path="/:userId/video/:id" element={<VideoDetailPage />} />
           <Route path="/:userId" element={<UserProfile />} />

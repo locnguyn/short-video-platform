@@ -1,13 +1,16 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, InputBase, IconButton, Box, useTheme, Avatar, Button, Menu, MenuItem } from '@mui/material';
+import { AppBar, Toolbar, Typography, InputBase, IconButton, Box, useTheme, Avatar, Button, Menu, MenuItem, Badge, ListItemIcon, ListItemText } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { ColorModeContext } from '../../contexts/themeProvider';
 import UserContext from '../../contexts/userContext';
-import { Settings, User, VideoIcon, LogOut } from 'lucide-react';
+import { Settings, User, VideoIcon, LogOut, Heart, MessageSquareMore, Video } from 'lucide-react';
+import { GET_NOTIFICATIONS, MARK_NOTIFICATION_AS_READ, NEW_NOTIFICATION_SUBSCRIPTION } from '../../GraphQLQueries/notificationQueries';
+import { useMutation, useQuery, useSubscription } from '@apollo/client';
+import { Notifications, PersonAdd } from '@mui/icons-material';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -55,12 +58,101 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   }
 }));
 
+const NotificationMenuItem = styled(MenuItem)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'flex-start',
+  padding: theme.spacing(1, 2),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+  },
+}));
+
+const getNotificationIcon = (type) => {
+  switch (type) {
+    case 'NEW_FOLLOWER':
+      return <PersonAdd />;
+    case 'VIDEO_LIKE':
+    case 'COMMENT_LIKE':
+      return <Heart fill='red' color='red' />;
+    case 'VIDEO_COMMENT':
+      return <MessageSquareMore />;
+    case 'FOLLOWED_USER_UPLOAD':
+      return <Video />;
+    default:
+      return <Notifications />;
+  }
+};
+
+const getNotificationContent = (notification) => {
+  const { type, actor, video, comment } = notification;
+  switch (type) {
+    case 'NEW_FOLLOWER':
+      return `${actor.username} started following you`;
+    case 'VIDEO_LIKE':
+      return `${actor.username} liked your video: ${video.title}`;
+    case 'VIDEO_COMMENT':
+      return `${actor.username} commented on your video: ${video.title}`;
+    case 'COMMENT_LIKE':
+      return `${actor.username} liked your comment: "${comment.content}"`;
+    case 'FOLLOWED_USER_UPLOAD':
+      return `${actor.username} uploaded a new video: ${video.title}`;
+    default:
+      return notification.content;
+  }
+};
+
+const getNotificationLink = (notification) => {
+  const { type, actor, video, comment } = notification;
+  switch (type) {
+    case 'NEW_FOLLOWER':
+      return `/profile/${actor.username}`;
+    case 'VIDEO_LIKE':
+    case 'VIDEO_COMMENT':
+    case 'FOLLOWED_USER_UPLOAD':
+      return `${video.user.username}/video/${video.id}`;
+    case 'COMMENT_LIKE':
+      return `/video/${video.id}?comment=${comment.id}`;
+    default:
+      return '/';
+  }
+};
+
 const Header = () => {
   const theme = useTheme();
   const colorMode = useContext(ColorModeContext);
   const { user, logout } = useContext(UserContext);
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+
+  const { data: notificationData, loading: notificationLoading } = useQuery(GET_NOTIFICATIONS);
+  const [markAsRead] = useMutation(MARK_NOTIFICATION_AS_READ);
+  const { data: newNotificationData } = useSubscription(NEW_NOTIFICATION_SUBSCRIPTION);
+
+  useEffect(() => {
+    if (notificationData) {
+      setNotifications(notificationData.notifications);
+      const unreadNotifications = notificationData.notifications.filter(n => !n.read);
+      setUnreadCount(unreadNotifications.length);
+    }
+  }, [notificationData]);
+
+  useEffect(() => {
+    if (newNotificationData && newNotificationData.newNotification) {
+      console.log(newNotificationData.newNotification)
+      setNotifications(prevNotifications => [newNotificationData.newNotification, ...prevNotifications]);
+      setUnreadCount(prevCount => prevCount + 1);
+    }
+  }, [newNotificationData]);
+
+  useEffect(() => {
+    if (notificationData) {
+      const unreadNotifications = notificationData.notifications.filter(n => !n.read);
+      setUnreadCount(unreadNotifications.length);
+    }
+  }, [notificationData]);
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -68,6 +160,26 @@ const Header = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNotificationOpen = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
+  };
+
+  const handleNotificationClick = async (notification) => {
+    await markAsRead({ variables: { notificationId: notification.id } });
+    setUnreadCount(prevCount => Math.max(0, prevCount - 1));
+    setNotifications(prevNotifications =>
+      prevNotifications.map(n =>
+        n.id === notification.id ? { ...n, read: true } : n
+      )
+    );
+    handleNotificationClose();
+    navigate(getNotificationLink(notification));
   };
 
   const handleLogout = () => {
@@ -78,10 +190,10 @@ const Header = () => {
 
   return (
     <AppBar
-      position="static"
       sx={{
         backgroundColor: theme.palette.custom.header,
         color: theme.palette.text.primary,
+        position: "static"
       }}
     >
       <Toolbar>
@@ -110,6 +222,23 @@ const Header = () => {
           />
         </Search>
         <Box sx={{ flexGrow: 1 }} />
+        {user && (
+          <IconButton
+            color="inherit"
+            onClick={handleNotificationOpen}
+            sx={{
+              mr: 2,
+              color: theme.palette.custom.icon,
+              '&:hover': {
+                backgroundColor: theme.palette.custom.hover,
+              },
+            }}
+          >
+            <Badge badgeContent={unreadCount} color="error">
+              <Notifications />
+            </Badge>
+          </IconButton>
+        )}
         <IconButton
           sx={{
             ml: 1,
@@ -173,6 +302,70 @@ const Header = () => {
                 <LogOut size={16} />
                 <Box sx={{ marginLeft: 1 }}>Đăng xuất</Box>
               </MenuItem>
+            </Menu>
+            <Menu
+              anchorEl={notificationAnchorEl}
+              open={Boolean(notificationAnchorEl)}
+              onClose={handleNotificationClose}
+              PaperProps={{
+                elevation: 0,
+                sx: {
+                  overflow: 'visible',
+                  filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                  // mt: 1.5,
+                  width: 360,
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                      width: '6px',
+                      backgroundColor: 'transparent',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                      backgroundColor: 'transparent',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                      borderRadius: '3px',
+                      backgroundColor: 'rgba(0,0,0,0.2)',
+                      '&:hover': {
+                          backgroundColor: 'rgba(0,0,0,0.3)',
+                      },
+                  },
+                },
+              }}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              {notificationLoading ? (
+                <MenuItem>Loading notifications...</MenuItem>
+              ) : notifications.length === 0 ? (
+                <MenuItem>No notifications</MenuItem>
+              ) : (
+                notifications.map((notification) => (
+                  <NotificationMenuItem
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    sx={{
+                      backgroundColor: notification.read ? 'inherit' : alpha(theme.palette.primary.main, 0.1),
+                      whiteSpace: 'normal',
+                      wordWrap: 'break-word',
+                    }}
+                  >
+                    <ListItemIcon>
+                      {getNotificationIcon(notification.type)}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={notification.content}
+                      secondary={new Date(notification.createdAt).toLocaleString()}
+                      primaryTypographyProps={{
+                        style: {
+                          whiteSpace: 'normal',
+                          wordWrap: 'break-word',
+                        }
+                      }}
+                    />
+                  </NotificationMenuItem>
+                ))
+              )}
             </Menu>
           </>
         ) : (
