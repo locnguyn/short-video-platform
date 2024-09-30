@@ -24,6 +24,9 @@ export const GET_NOTIFICATIONS = gql`
         id
         content
       }
+      user {
+        username
+      }
     }
   }
 `;
@@ -60,6 +63,9 @@ export const NEW_NOTIFICATION_SUBSCRIPTION = gql`
       comment {
         id
         content
+      }
+      user {
+        username
       }
     }
   }

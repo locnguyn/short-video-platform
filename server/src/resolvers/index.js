@@ -48,6 +48,25 @@ const resolvers = {
             }
             return videoService.getRecommendedVideos(context.user.id, limit);
         },
+        getFollowingVideos: async (_, { limit }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to get following videos');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            return videoService.getFollowingVideos(context.user.id, limit);
+        },
+        getFriendVideos: async (_, { limit }, context) => {
+            if (!context.user) {
+                throw new Error('You must be logged in to get following videos');
+            }
+            if (context.tokenError) {
+                throw new Error(tokenError);
+            }
+            console.log('getFriendVideos_________________________' + context.user.id)
+            return videoService.getFriendVideos(context.user.id, limit);
+        },
         getCategories: async (_, __, { user, tokenError }) => {
             if (tokenError) {
                 throw new Error(tokenError);
@@ -95,7 +114,21 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return videoService.uploadVideo(context.user.id, title, videoFile, thumbnailFile, category, tags);
+            const video = await videoService.uploadVideo(context.user.id, title, videoFile, thumbnailFile, category, tags);
+            if (video) {
+                const followers = await userService.getFollowers(context.user.id);
+
+                for (const follower of followers) {
+                    const {notification, user} = await notificationService.createVideoUploadNotification(video.id, context.user.id, follower.follower.toString());
+
+                    if (notification) {
+                        pubsub.publish(`NEW_NOTIFICATION_${follower.follower.toString()}`, {
+                            newNotification: notification
+                        });
+                    }
+                }
+            }
+            return video;
         },
         likeVideo: async (_, { targetId }, context) => {
             if (!context.user) {
@@ -107,10 +140,10 @@ const resolvers = {
             const res = likeService.likeVideo(targetId, context.user.id);
             if (res) {
                 const t = await notificationService.createLikeNotification(targetId, context.user);
-                console.log(t, "hehehehe__________________");
-                pubsub.publish(`NEW_NOTIFICATION_${t.user}`, {
-                    newNotification: t.notification
-                });
+                if (t?.user && t?.notification)
+                    pubsub.publish(`NEW_NOTIFICATION_${t.user}`, {
+                        newNotification: t.notification
+                    });
             }
             return res;
         },
@@ -139,7 +172,14 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return likeService.likeComment(context.user.id, targetId);
+            const res = likeService.likeComment(context.user.id, targetId);
+            if (res) {
+                const { notification, user } = await notificationService.createLikeCommentNotification(targetId, context.user);
+                pubsub.publish(`NEW_NOTIFICATION_${user}`, {
+                    newNotification: notification
+                });
+            }
+            return res;
         },
         unlikeComment: async (_, { targetId }, context) => {
             if (!context.user) {
@@ -159,17 +199,28 @@ const resolvers = {
             }
             let newComment = await commentService.addComment(videoId, content, parentCommentId, context.user.id);
 
-            // Ensure replies is included
             newComment = {
                 ...newComment.toObject(),
                 id: newComment._id,
                 replies: [],
             };
 
-            pubsub.publish('COMMENT_ADDED', {
+            pubsub.publish(`COMMENT_ADDED_${videoId}`, {
                 commentAdded: newComment,
                 videoId
             });
+
+            const { notification, user, notification2, user2 } = await notificationService.createVideoCommentNotification(videoId, parentCommentId, context.user.id);
+            if (notification && user) {
+                pubsub.publish(`NEW_NOTIFICATION_${user}`, {
+                    newNotification: notification
+                });
+            }
+            if (notification2 && user2) {
+                pubsub.publish(`NEW_NOTIFICATION_${user2}`, {
+                    newNotification: notification2
+                });
+            }
 
             return newComment;
         },
@@ -180,7 +231,16 @@ const resolvers = {
             if (context.tokenError) {
                 throw new Error(tokenError);
             }
-            return followService.followUser(context.user.id, followingId);
+            const res = followService.followUser(context.user.id, followingId);
+            if(res){
+                const { notification, user } = await notificationService.createNewFollowerNotification(context.user.id, followingId);
+                if(notification) {
+                    pubsub.publish(`NEW_NOTIFICATION_${user}`, {
+                        newNotification: notification
+                    })
+                }
+            }
+            return res;
         },
         unfollowUser: async (_, { followingId }, context) => {
             if (!context.user) {
@@ -329,7 +389,8 @@ const resolvers = {
     Subscription: {
         commentAdded: {
             subscribe: (_, { videoId }, context) => {
-                return pubsub.asyncIterator('COMMENT_ADDED');
+                console.log('Subscription ' + videoId);
+                return pubsub.asyncIterator(`COMMENT_ADDED_${videoId}`);
             },
         },
         newMessage: {

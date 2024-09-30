@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, debounce, Typography } from '@mui/material';
 import { Heart, Play } from 'lucide-react';
 
-const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbnailGenerated, onClick = () => {} }) => {
+const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbnailGenerated, onClick = () => { }, isMuted = true, aspectRatio = '12/16' }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [autoThumbnail, setAutoThumbnail] = useState('');
     const videoRef = useRef(null);
@@ -12,7 +12,6 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
         if (videoRef.current) {
             videoRef.current.currentTime = 0;
             videoRef.current.play().catch(error => {
-                // Ignore abort errors, log others
                 if (error.name !== 'AbortError') {
                     console.error('Error playing video:', error);
                 }
@@ -74,15 +73,13 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
         };
     };
 
-    const effectiveThumbnail = thumbnailUrl || autoThumbnail;
-
     return (
         <Box
             sx={{
                 position: 'relative',
                 width: '100%',
                 maxWidth: 300,
-                aspectRatio: '12/16',
+                aspectRatio: aspectRatio,
                 cursor: 'pointer',
                 margin: 'auto',
                 overflow: 'hidden',
@@ -124,7 +121,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
             <video
                 ref={videoRef}
                 src={videoUrl}
-                muted
+                muted={isMuted}
                 loop
                 playsInline
                 style={{

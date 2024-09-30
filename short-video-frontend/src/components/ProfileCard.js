@@ -36,7 +36,9 @@ const ProfileCard = ({ user, anchorEl, onClose, onClick }) => {
     };
 
     return (
-        <Popper open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={onClose} placement="right-start">
+        <Popper open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={onClose} placement="right-start" sx={{
+            zIndex: 3
+        }}>
             <Card>
                 <CardContent>
                     <Box display="flex" alignItems="center" justifyContent="space-between">

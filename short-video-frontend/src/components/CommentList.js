@@ -24,11 +24,15 @@ const CommentList = ({ videoId, showCommentVideoId, setShowComments, isDetails =
 
     const { data: subscriptionData } = useSubscription(COMMENT_ADDED_SUBSCRIPTION, {
         variables: { videoId: videoId },
+        onError: (error) => {
+          console.error('Subscription error:', error);
+        },
     });
 
     useEffect(() => {
         if (subscriptionData && subscriptionData.commentAdded) {
             const newComment = subscriptionData.commentAdded;
+            console.log(subscriptionData.commentAdded);
             if (newComment.user.username !== user.username) {
                 setComments(prevComments => {
                     if (newComment.level === 0) {
@@ -174,7 +178,7 @@ const CommentList = ({ videoId, showCommentVideoId, setShowComments, isDetails =
             sx={{
                 zIndex: 1,
                 mt: 2,
-                height: `${isDetails ? '68.5vh' : '90vh'}`,
+                height: `${isDetails ? '68.3vh' : '90vh'}`,
                 position: 'relative',
             }}>
             <Typography variant="h6" sx={{ m: 1 }}>Bình luận</Typography>
@@ -238,7 +242,7 @@ const CommentList = ({ videoId, showCommentVideoId, setShowComments, isDetails =
                     )}
                     {!hasMore && (
                         <Typography variant="body2" textAlign="center" my={2}>
-                            Đã tải hết bình luận
+                            {comments.length === 0 ? 'Hãy là người đầu tiên bình luận' : 'Đã tải hết bình luận'}
                         </Typography>
                     )}
                 </Box>

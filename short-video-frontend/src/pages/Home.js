@@ -3,11 +3,12 @@ import { Box, CircularProgress, debounce, Typography } from '@mui/material';
 import ShortVideoComponent from '../components/VideoDetails';
 import VideoPlayer from '../components/VideoPlayer';
 import { useQuery } from '@apollo/client';
-import { GET_RECOMMENDED_VIDEOS } from '../GraphQLQueries/videoQueries';
+import { GET_FOLLOWING_VIDEOS, GET_FRIEND_VIDEOS, GET_RECOMMENDED_VIDEOS } from '../GraphQLQueries/videoQueries';
 import CommentContext from '../contexts/commentContext';
+import { useLocation } from 'react-router-dom';
 
 const VIDEOS_PER_PAGE = 10;
-const RENDER_WINDOW = 3; // Number of videos to render above and below the current video
+const RENDER_WINDOW = 3;
 
 const HomePage = () => {
     const [videos, setVideos] = useState([]);
@@ -20,23 +21,29 @@ const HomePage = () => {
     const containerRef = useRef(null);
     const continueScrollRef = useRef(null);
 
-    const { loading: videoLoading, error: videoError, data, fetchMore } = useQuery(GET_RECOMMENDED_VIDEOS, {
-        variables: {
-            limit: VIDEOS_PER_PAGE
+    const location = useLocation();
+    const isFollowingPage = location.pathname === '/following';
+    const isFriendsPage = location.pathname === '/friends';
+
+    const { loading: videoLoading, error: videoError, data, fetchMore } = useQuery(
+        isFollowingPage ? GET_FOLLOWING_VIDEOS : isFriendsPage ? GET_FRIEND_VIDEOS : GET_RECOMMENDED_VIDEOS,
+        {
+            variables: {
+                limit: VIDEOS_PER_PAGE
+            }
         }
-    });
+    );
 
     const { showCommentVideoId } = useContext(CommentContext);
 
     const loadMore = useCallback(debounce(() => {
         if (!hasMore) return;
-        console.log('Loading more videos');
         fetchMore({
             variables: {
                 limit: VIDEOS_PER_PAGE,
             },
         }).then((fetchMoreResult) => {
-            const newVideos = fetchMoreResult.data.getRecommendedVideos;
+            const newVideos = fetchMoreResult.data.getFollowingVideos || fetchMoreResult.data.getRecommendedVideos || fetchMoreResult.data.getFriendVideos;
             if (newVideos.length > 0) {
                 setVideos(pre => [...pre, ...newVideos]);
                 setHasMore(newVideos.length === VIDEOS_PER_PAGE);
@@ -44,14 +51,23 @@ const HomePage = () => {
                 setHasMore(false);
             }
         });
-    }, 100), [fetchMore, hasMore]);
+    }, 100), [fetchMore, hasMore, isFollowingPage]);
 
     useEffect(() => {
-        if (data?.getRecommendedVideos.length > 0) {
-            setVideos(data.getRecommendedVideos);
-            setHasMore(data.getRecommendedVideos.length >= VIDEOS_PER_PAGE);
+        if (data) {
+            const fetchedVideos = data?.getFollowingVideos || data?.getRecommendedVideos  || data?.getFriendVideos;
+            if (fetchedVideos && fetchedVideos.length > 0) {
+                setVideos(fetchedVideos);
+                setHasMore(fetchedVideos.length >= VIDEOS_PER_PAGE);
+            } else {
+                console.log('No videos found in the fetched data');
+            }
         }
-    }, [data]);
+    }, [data, isFollowingPage]);
+    useEffect(() => {
+        setCurrentVideoIndex(0);
+        showCommentVideoId(null);
+    }, [isFollowingPage]);
 
     useEffect(() => {
         if (!selectedVideo && containerRef.current) {
@@ -67,13 +83,11 @@ const HomePage = () => {
         const targetScroll = Math.round(currentScroll / videoHeight) * videoHeight;
 
         if (event.deltaY > 0 && currentScroll < container.scrollHeight - videoHeight) {
-            // Scroll down
             container.scrollTo({
                 top: targetScroll + videoHeight,
                 behavior: 'smooth'
             });
         } else if (event.deltaY < 0 && currentScroll > 0) {
-            // Scroll up
             container.scrollTo({
                 top: targetScroll - videoHeight,
                 behavior: 'smooth'
@@ -195,6 +209,18 @@ const HomePage = () => {
 
     if (videoError) return <Typography color="error">Error: {videoError.message}</Typography>;
 
+    if (videoLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (videos.length === 0) {
+        return <Typography>No videos available.</Typography>;
+    }
+
     return (
         <Box
             ref={containerRef}
@@ -220,7 +246,7 @@ const HomePage = () => {
         >
             {videos.map((video, index) => (
                 <Box
-                    key={index}
+                    key={video.id}
                     sx={{
                         height: '100%',
                         display: 'flex',

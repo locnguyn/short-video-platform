@@ -51,6 +51,37 @@ export const GET_VIDEO_DETAILS = gql`
 `;
 
 export const GET_RECOMMENDED_VIDEOS = gql`
+  query GetFollowingVideos($limit: Int!) {
+    getFollowingVideos(limit: $limit) {
+      id
+      title
+      videoUrl
+      thumbnailUrl
+      category {
+        name
+      }
+      tags
+      likeCount
+      views
+      commentsCount
+      savesCount
+      engagementRate
+      createdAt
+      isViewed
+      isLiked
+      isSaved
+      user {
+        id
+        username
+        profilePicture
+        isFollowed
+        followerCount
+      }
+    }
+  }
+`;
+
+export const GET_FOLLOWING_VIDEOS = gql`
   query GetRecommendedVideos($limit: Int!) {
     getRecommendedVideos(limit: $limit) {
       id
@@ -79,4 +110,35 @@ export const GET_RECOMMENDED_VIDEOS = gql`
       }
     }
   }
-`
+`;
+
+export const GET_FRIEND_VIDEOS = gql`
+  query GetFriendVideos($limit: Int!) {
+    getFriendVideos(limit: $limit) {
+      id
+      title
+      videoUrl
+      thumbnailUrl
+      category {
+        name
+      }
+      tags
+      likeCount
+      views
+      commentsCount
+      savesCount
+      engagementRate
+      createdAt
+      isViewed
+      isLiked
+      isSaved
+      user {
+        id
+        username
+        profilePicture
+        isFollowed
+        followerCount
+      }
+    }
+  }
+`;

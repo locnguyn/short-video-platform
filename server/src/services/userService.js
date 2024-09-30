@@ -87,14 +87,12 @@ const getUsersByIds = async (userIds) => {
 const getUserById = async (userIdInput) => {
     let userId;
 
-    // Kiểm tra xem đầu vào có phải là đối tượng chứa id không
     if (typeof userIdInput === 'object' && userIdInput.id) {
         userId = userIdInput.id;
     } else {
         userId = userIdInput;
     }
 
-    // Kiểm tra tính hợp lệ của userId
     if (!isValidObjectId(userId)) {
         throw new Error('Invalid userId format');
     }
@@ -111,10 +109,17 @@ const getUserById = async (userIdInput) => {
     }
 };
 
+const getFollowers = async (userId) => {
+    return await models.Follow.find({
+        following: userId
+    });
+};
+
 export default {
     getUser,
     registerUser,
     loginUser,
     getUsersByIds,
-    getUserById
+    getUserById,
+    getFollowers
 }

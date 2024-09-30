@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const NotificationSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['NEW_FOLLOWER', 'VIDEO_LIKE', 'VIDEO_COMMENT', 'COMMENT_LIKE', 'FOLLOWED_USER_UPLOAD'],
+    enum: ['NEW_FOLLOWER', 'VIDEO_LIKE', 'VIDEO_COMMENT', 'COMMENT_LIKE', 'FOLLOWED_USER_UPLOAD', 'COMMENT_REPLY'],
     required: true
   },
   content: {
@@ -56,6 +56,7 @@ NotificationSchema.virtual('url').get(function() {
       return `/profile/${this.actor}`;
     case 'VIDEO_LIKE':
     case 'VIDEO_COMMENT':
+    case 'COMMENT_REPLY':
     case 'FOLLOWED_USER_UPLOAD':
     case 'COMMENT_LIKE':
       return `${this.actor}/video/${this.video}`;

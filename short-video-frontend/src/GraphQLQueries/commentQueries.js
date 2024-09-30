@@ -62,7 +62,7 @@ export const COMMENT_ADDED_SUBSCRIPTION = gql`
       createdAt
       likeCount
       level
-      isLike
+      isLiked
       parentComment {
         id
       }

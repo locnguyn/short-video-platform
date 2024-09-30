@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { List, ListItem, ListItemIcon, ListItemText, Paper, useTheme } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 import { Home, Explore, People, Group, AccountCircle, Chat, Person, Upload } from '@mui/icons-material';
+import UserContext from '../contexts/userContext';
 
 const Navigation = () => {
   const theme = useTheme();
+  const {user} = useContext(UserContext);
 
   const navItems = [
     { text: 'Dành Cho Bạn', icon: <Home />, path: '/' },
@@ -12,7 +14,7 @@ const Navigation = () => {
     { text: 'Đang Theo Dõi', icon: <Person />, path: '/following' },
     { text: 'Bạn Bè', icon: <Group />, path: '/friends' },
     { text: 'Messenger', icon: <Chat />, path: '/messages' },
-    { text: 'Trang Cá Nhân', icon: <AccountCircle />, path: '/profile' },
+    { text: 'Trang Cá Nhân', icon: <AccountCircle />, path: `/${user?.username}` },
     { text: 'Chia Sẻ Video', icon: <Upload />, path: '/upload' },
   ];
 

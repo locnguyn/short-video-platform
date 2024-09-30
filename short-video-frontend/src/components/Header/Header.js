@@ -1,13 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, InputBase, IconButton, Box, useTheme, Avatar, Button, Menu, MenuItem, Badge, ListItemIcon, ListItemText } from '@mui/material';
+import { AppBar, Toolbar, Typography, InputBase, IconButton, Box, useTheme, Avatar, Button, Menu, MenuItem, Badge, ListItemIcon, ListItemText, ListItemSecondaryAction } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { ColorModeContext } from '../../contexts/themeProvider';
 import UserContext from '../../contexts/userContext';
-import { Settings, User, VideoIcon, LogOut, Heart, MessageSquareMore, Video } from 'lucide-react';
+import { Settings, User, VideoIcon, LogOut, Heart, MessageSquareMore, Video, Dot } from 'lucide-react';
 import { GET_NOTIFICATIONS, MARK_NOTIFICATION_AS_READ, NEW_NOTIFICATION_SUBSCRIPTION } from '../../GraphQLQueries/notificationQueries';
 import { useMutation, useQuery, useSubscription } from '@apollo/client';
 import { Notifications, PersonAdd } from '@mui/icons-material';
@@ -83,35 +83,17 @@ const getNotificationIcon = (type) => {
   }
 };
 
-const getNotificationContent = (notification) => {
-  const { type, actor, video, comment } = notification;
-  switch (type) {
-    case 'NEW_FOLLOWER':
-      return `${actor.username} started following you`;
-    case 'VIDEO_LIKE':
-      return `${actor.username} liked your video: ${video.title}`;
-    case 'VIDEO_COMMENT':
-      return `${actor.username} commented on your video: ${video.title}`;
-    case 'COMMENT_LIKE':
-      return `${actor.username} liked your comment: "${comment.content}"`;
-    case 'FOLLOWED_USER_UPLOAD':
-      return `${actor.username} uploaded a new video: ${video.title}`;
-    default:
-      return notification.content;
-  }
-};
-
 const getNotificationLink = (notification) => {
   const { type, actor, video, comment } = notification;
   switch (type) {
     case 'NEW_FOLLOWER':
-      return `/profile/${actor.username}`;
+      return `/${actor.username}`;
     case 'VIDEO_LIKE':
     case 'VIDEO_COMMENT':
+    case 'COMMENT_REPLY':
     case 'FOLLOWED_USER_UPLOAD':
-      return `${video.user.username}/video/${video.id}`;
     case 'COMMENT_LIKE':
-      return `/video/${video.id}?comment=${comment.id}`;
+      return `/${video.user.username}/video/${video.id}`;
     default:
       return '/';
   }
@@ -127,7 +109,10 @@ const Header = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
 
-  const { data: notificationData, loading: notificationLoading } = useQuery(GET_NOTIFICATIONS);
+  const { data: notificationData, loading: notificationLoading } = useQuery(GET_NOTIFICATIONS, {
+    fetchPolicy: 'network-only',
+    skip: !user
+  });
   const [markAsRead] = useMutation(MARK_NOTIFICATION_AS_READ);
   const { data: newNotificationData } = useSubscription(NEW_NOTIFICATION_SUBSCRIPTION);
 
@@ -137,7 +122,7 @@ const Header = () => {
       const unreadNotifications = notificationData.notifications.filter(n => !n.read);
       setUnreadCount(unreadNotifications.length);
     }
-  }, [notificationData]);
+  }, [notificationData, user]);
 
   useEffect(() => {
     if (newNotificationData && newNotificationData.newNotification) {
@@ -183,6 +168,8 @@ const Header = () => {
   };
 
   const handleLogout = () => {
+    setNotifications([]);
+    setUnreadCount(0);
     logout();
     handleMenuClose();
     navigate('/');
@@ -227,7 +214,7 @@ const Header = () => {
             color="inherit"
             onClick={handleNotificationOpen}
             sx={{
-              mr: 2,
+              mr: 1,
               color: theme.palette.custom.icon,
               '&:hover': {
                 backgroundColor: theme.palette.custom.hover,
@@ -286,7 +273,7 @@ const Header = () => {
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <MenuItem onClick={() => navigate('/profile')}>
+              <MenuItem onClick={() => navigate(`/${user?.username}`)}>
                 <User size={16} />
                 <Box sx={{ marginLeft: 1 }}>Trang cá nhân</Box>
               </MenuItem>
@@ -316,19 +303,20 @@ const Header = () => {
                   width: 360,
                   maxHeight: 400,
                   overflowY: 'auto',
+                  py: 0,
                   '&::-webkit-scrollbar': {
-                      width: '6px',
-                      backgroundColor: 'transparent',
+                    width: '6px',
+                    backgroundColor: 'transparent',
                   },
                   '&::-webkit-scrollbar-track': {
-                      backgroundColor: 'transparent',
+                    backgroundColor: 'transparent',
                   },
                   '&::-webkit-scrollbar-thumb': {
-                      borderRadius: '3px',
-                      backgroundColor: 'rgba(0,0,0,0.2)',
-                      '&:hover': {
-                          backgroundColor: 'rgba(0,0,0,0.3)',
-                      },
+                    borderRadius: '3px',
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                    },
                   },
                 },
               }}
@@ -345,7 +333,7 @@ const Header = () => {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     sx={{
-                      backgroundColor: notification.read ? 'inherit' : alpha(theme.palette.primary.main, 0.1),
+                      backgroundColor: notification.read ? 'inherit' : 'inherit',
                       whiteSpace: 'normal',
                       wordWrap: 'break-word',
                     }}
@@ -363,6 +351,12 @@ const Header = () => {
                         }
                       }}
                     />
+                    {
+                      !notification.read &&
+                      <ListItemSecondaryAction>
+                        <Dot size={30} color={theme.palette.primary.light}/>
+                      </ListItemSecondaryAction>
+                    }
                   </NotificationMenuItem>
                 ))
               )}

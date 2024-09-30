@@ -25,10 +25,10 @@ function useAuth() {
   const { loading, error, data } = useQuery(VERIFY_TOKEN);
 
   const logout = () => {
+    navigate('/login');
     userDispatcher({
       type: "logout"
     });
-    navigate('/login');
   }
 
   useEffect(() => {
@@ -59,6 +59,8 @@ function AuthenticatedApp() {
         <Routes>
           <Route path="/" element={<HomeLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="following" element={<HomePage />} />
+            <Route path="friends" element={<HomePage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="upload" element={<VideoUpload />} />

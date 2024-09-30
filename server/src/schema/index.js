@@ -176,6 +176,8 @@ const typeDefs = gql`
     getConversation(id: ID!): Conversation
     getConversationMessages(conversationId: ID!, page: Int, limit: Int): [Message!]!
     notifications: [Notification!]!
+    getFollowingVideos(limit: Int): [Video!]!
+    getFriendVideos(limit: Int): [Video!]!
   }
 
   type Mutation {

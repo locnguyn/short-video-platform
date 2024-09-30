@@ -128,7 +128,7 @@ const UploadVideo = () => {
             if (err.graphQLErrors) {
                 err.graphQLErrors.forEach(({ message, locations, path }) => {
                     console.log(
-                        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
+                        `[GraphQL error]: Message: ${message.toString()}, Location: ${locations}, Path: ${path}`
                     );
                 });
             }
@@ -184,6 +184,7 @@ const UploadVideo = () => {
                             thumbnailUrl={thumbnailFile ? URL.createObjectURL(thumbnailFile) : ''}
                             title={'100K'}
                             onThumbnailGenerated={setThumbnailFile}
+                            isMuted={false}
                         />
                     </Box>
                 )}

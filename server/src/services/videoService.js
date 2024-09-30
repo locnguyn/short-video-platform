@@ -32,17 +32,13 @@ const isViewed = async (userId, videoId) => {
 
 const getRecommendedVideos = async (userId, limit = 10) => {
   try {
-    // Get user's viewing history
     const viewedVideoIds = await models.View.distinct('video', { user: userId });
 
-    // Get user's liked videos
     const likedVideoIds = await models.Like.distinct('targetId', { user: userId, targetType: 'Video' });
 
     let recommendedVideos;
 
-    // Check if the user has any viewing or liking history
     if (viewedVideoIds.length === 0 && likedVideoIds.length === 0) {
-      // For new users or users without activity, recommend popular videos
       recommendedVideos = await models.Video.aggregate([
         {
           $addFields: {
@@ -59,7 +55,6 @@ const getRecommendedVideos = async (userId, limit = 10) => {
         { $limit: limit }
       ]);
     } else {
-      // For users with activity, use the existing recommendation logic
       const userInterests = await models.Video.aggregate([
         {
           $match: {
@@ -80,11 +75,13 @@ const getRecommendedVideos = async (userId, limit = 10) => {
           $project: {
             _id: 0,
             categories: 1,
-            tags: { $reduce: {
-              input: '$tags',
-              initialValue: [],
-              in: { $setUnion: ['$$value', '$$this'] }
-            }}
+            tags: {
+              $reduce: {
+                input: '$tags',
+                initialValue: [],
+                in: { $setUnion: ['$$value', '$$this'] }
+              }
+            }
           }
         }
       ]);
@@ -124,7 +121,6 @@ const getRecommendedVideos = async (userId, limit = 10) => {
       ]);
     }
 
-    // If we still don't have enough recommendations, fill with popular videos
     if (recommendedVideos.length < limit) {
       const additionalVideos = await models.Video.aggregate([
         {
@@ -251,6 +247,75 @@ const getPrevUserVideo = async (currentVideoCreatedAt, userId) => {
   }
 };
 
+const getFollowingVideos = async (userId, limit = 10) => {
+  try {
+    const following = await models.Follow.find({ follower: userId }).select('following');
+    const followingIds = following.map(f => f.following);
+
+    const viewedVideos = await models.View.find({ user: userId }).select('video');
+    const viewedVideoIds = viewedVideos.map(v => v.video);
+
+    const videos = await models.Video.find({
+      user: { $in: followingIds },
+      _id: { $nin: viewedVideoIds }
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    return videos;
+  } catch (error) {
+    console.error('Error fetching following videos:', error);
+    throw new Error('An error occurred while fetching following videos');
+  }
+};
+
+const getFriendVideos = async (userId, limit = 10) => {
+  try {
+    const friendIds = await models.Follow.aggregate([
+      { $match: { follower: userId } },
+      {
+        $lookup: {
+          from: 'follow',
+          let: { followingId: '$following' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$follower', '$$followingId'] },
+                    { $eq: ['$following', userId] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'mutualFollow'
+        }
+      },
+      { $match: { 'mutualFollow.0': { $exists: true } } },
+      { $project: { _id: 0, friendId: '$following' } }
+    ]);
+
+    const mutualFriendIds = friendIds.map(friend => friend.friendId);
+    console.log(mutualFriendIds)
+
+    const viewedVideos = await models.View.find({ user: userId }).select('video');
+    const viewedVideoIds = viewedVideos.map(v => v.video);
+
+    const videos = await models.Video.find({
+      user: { $in: mutualFriendIds },
+      _id: { $nin: viewedVideoIds }
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    return videos;
+  } catch (error) {
+    console.error('Error fetching friend videos:', error);
+    throw new Error('An error occurred while fetching friend videos');
+  }
+};
+
 export default {
   getVideo,
   getNextUserVideo,
@@ -260,5 +325,7 @@ export default {
   getUserVideos,
   isSaved,
   isLiked,
-  isViewed
+  isViewed,
+  getFollowingVideos,
+  getFriendVideos,
 };

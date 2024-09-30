@@ -399,7 +399,7 @@ const VideoPlayer = ({ video, onClick, videoStates }) => {
           sx={{ bottom: showControls ? '0' : '-100%' }}
           onClick={handleControlClick}
         >
-          <Typography variant="h6">{video.title}</Typography>
+          <Typography variant="body1">{video.title}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
             <IconButton onClick={togglePlay} sx={{ color: 'white', p: 0 }}>
               {isPlaying ? (
