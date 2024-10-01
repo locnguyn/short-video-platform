@@ -178,6 +178,7 @@ const typeDefs = gql`
     notifications: [Notification!]!
     getFollowingVideos(limit: Int): [Video!]!
     getFriendVideos(limit: Int): [Video!]!
+    search(query: String!, page: Int, limit: Int): SearchResult!
   }
 
   type Mutation {
@@ -214,6 +215,13 @@ const typeDefs = gql`
   type AuthPayload {
     token: String!
     user: User!
+  }
+
+  type SearchResult {
+    users: [User!]!
+    videos: [Video!]!
+    totalUsers: Int!
+    totalVideos: Int!
   }
 `;
 

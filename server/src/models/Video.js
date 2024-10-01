@@ -16,4 +16,6 @@ const videoSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+videoSchema.index({ title: 'text', tags: 'text' });
+
 export default mongoose.model('Video', videoSchema);

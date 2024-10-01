@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const categorySchema = new mongoose.Schema({
     name: { type: String, required: true },
-    description: { type: String, required: true }
+    description: { type: String, required: true}
 });
 
 const commentSchema = new mongoose.Schema({
@@ -50,10 +50,10 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     profilePicture: String,
     createdAt: { type: Date, default: Date.now },
-});
-const userInteractionSchema = new mongoose.Schema({
+  });
+  const userInteractionSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Video', required: true },
+    videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Video', required: true},
     interactionTypeId: { type: mongoose.Schema.Types.ObjectId, ref: 'InteractionType', required: true },
     score: Number,
     timestamp: { type: Date, default: Date.now() }
@@ -73,7 +73,7 @@ const videoSchema = new mongoose.Schema({
     title: { type: String, required: true },
     videoKey: { type: String, required: true },
     thumbnailUrl: String,
-    duration: { type: Number, required: true },
+    duration: { type: Number, required: true},
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
     tags: [String],
     likeCount: { type: Number, default: 0 },
@@ -82,15 +82,7 @@ const videoSchema = new mongoose.Schema({
     savesCount: { type: Number, default: 0 },
     engagementRate: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
-});
+  });
 
 
-const fs = require('fs');
-
-// Non-blocking read file
-fs.readFile('example.txt', 'utf8', (err, data) => {
-    if (err) throw err;
-    console.log(data);
-});
-
-console.log('This will be printed before file content');
+  

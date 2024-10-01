@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, InputBase, IconButton, Box, useTheme, Avatar, Button, Menu, MenuItem, Badge, ListItemIcon, ListItemText, ListItemSecondaryAction } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
@@ -9,7 +9,8 @@ import { ColorModeContext } from '../../contexts/themeProvider';
 import UserContext from '../../contexts/userContext';
 import { Settings, User, VideoIcon, LogOut, Heart, MessageSquareMore, Video, Dot } from 'lucide-react';
 import { GET_NOTIFICATIONS, MARK_NOTIFICATION_AS_READ, NEW_NOTIFICATION_SUBSCRIPTION } from '../../GraphQLQueries/notificationQueries';
-import { useMutation, useQuery, useSubscription } from '@apollo/client';
+import { SEARCH_QUERY } from '../../GraphQLQueries/searchQueries';
+import { useLazyQuery, useMutation, useQuery, useSubscription } from '@apollo/client';
 import { Notifications, PersonAdd } from '@mui/icons-material';
 
 const Search = styled('div')(({ theme }) => ({
@@ -22,10 +23,6 @@ const Search = styled('div')(({ theme }) => ({
   marginRight: theme.spacing(2),
   marginLeft: 0,
   width: '100%',
-  [theme.breakpoints.up('sm')]: {
-    marginLeft: theme.spacing(3),
-    width: '30%',
-  },
   borderRadius: '30px'
 }));
 
@@ -65,6 +62,39 @@ const NotificationMenuItem = styled(MenuItem)(({ theme }) => ({
   '&:hover': {
     backgroundColor: alpha(theme.palette.primary.main, 0.1),
   },
+}));
+
+const SearchResultsContainer = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  zIndex: 3,
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[3],
+  borderRadius: theme.shape.borderRadius,
+  maxHeight: '400px',
+  overflowY: 'auto',
+  '&::-webkit-scrollbar': {
+    width: '6px',
+    backgroundColor: 'transparent',
+  },
+  '&::-webkit-scrollbar-track': {
+    backgroundColor: 'transparent',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    borderRadius: '3px',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    '&:hover': {
+      backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+  },
+}));
+
+const SearchResultItem = styled(MenuItem)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(1, 2),
 }));
 
 const getNotificationIcon = (type) => {
@@ -108,6 +138,60 @@ const Header = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ users: [], videos: [] });
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef(null);
+
+  const [search, { loading: searchLoading }] = useLazyQuery(SEARCH_QUERY, {
+    onCompleted: (data) => {
+      setSearchResults(data.search);
+      setShowResults(true);
+    },
+  });
+
+  const handleSearch = (event) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+    if (query.length > 2) {
+      search({ variables: { query, page: 1, limit: 15 } });
+    } else {
+      setShowResults(false);
+    }
+  };
+
+  const handleSearchItemClick = (item) => {
+    setShowResults(false);
+    if (item.__typename === 'User') {
+      navigate(`/${item.username}`);
+    } else if (item.__typename === 'Video') {
+      navigate(`/${item.user.username}/video/${item.id}`);
+    }
+  };
+
+  const handleSearchBlur = () => {
+    setTimeout(() => setShowResults(false), 200);
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      setShowResults(false);
+      navigate(`/search?query=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const { data: notificationData, loading: notificationLoading } = useQuery(GET_NOTIFICATIONS, {
     fetchPolicy: 'network-only',
@@ -199,15 +283,46 @@ const Header = () => {
         >
           LocXoc
         </Typography>
-        <Search>
-          <SearchIconWrapper>
-            <SearchIcon />
-          </SearchIconWrapper>
-          <StyledInputBase
-            placeholder="Tìm kiếm…"
-            inputProps={{ 'aria-label': 'search' }}
-          />
-        </Search>
+        <Box sx={{
+          position: 'relative', width: '100%',
+          [theme.breakpoints.up('sm')]: {
+            marginLeft: theme.spacing(3),
+            width: '30%',
+          },
+        }}>
+          <Search>
+            <SearchIconWrapper>
+              <SearchIcon />
+            </SearchIconWrapper>
+            <StyledInputBase
+              placeholder="Tìm kiếm…"
+              inputProps={{ 'aria-label': 'search' }}
+              value={searchQuery}
+              onChange={handleSearch}
+              onBlur={handleSearchBlur}
+              onKeyDown={handleSearchKeyDown}
+            />
+          </Search>
+          {showResults && (
+            <SearchResultsContainer>
+              {searchResults.users.map((user) => (
+                <SearchResultItem key={user.id} onClick={() => handleSearchItemClick(user)}>
+                  <Avatar src={user.profilePicture} sx={{ width: 32, height: 32, marginRight: 1 }} />
+                  <ListItemText primary={user.username} secondary="Người dùng" />
+                </SearchResultItem>
+              ))}
+              {searchResults.videos.map((video) => (
+                <SearchResultItem key={video.id} onClick={() => handleSearchItemClick(video)}>
+                  <Video size={32} style={{ marginRight: 8 }} />
+                  <ListItemText primary={video.title} secondary={`đăng bởi ${video.user.username}`} />
+                </SearchResultItem>
+              ))}
+              {searchResults.users.length === 0 && searchResults.videos.length === 0 && (
+                <MenuItem disabled>No results found</MenuItem>
+              )}
+            </SearchResultsContainer>
+          )}
+        </Box>
         <Box sx={{ flexGrow: 1 }} />
         {user && (
           <IconButton
@@ -354,7 +469,7 @@ const Header = () => {
                     {
                       !notification.read &&
                       <ListItemSecondaryAction>
-                        <Dot size={30} color={theme.palette.primary.light}/>
+                        <Dot size={30} color={theme.palette.primary.light} />
                       </ListItemSecondaryAction>
                     }
                   </NotificationMenuItem>
@@ -378,7 +493,7 @@ const Header = () => {
           </Button>
         )}
       </Toolbar>
-    </AppBar>
+    </AppBar >
   );
 };
 

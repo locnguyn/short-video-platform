@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, debounce, Typography } from '@mui/material';
 import { Heart, Play } from 'lucide-react';
+import LargeNumberDisplay from './LargeNumberDisplay';
 
 const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbnailGenerated, onClick = () => { }, isMuted = true, aspectRatio = '12/16' }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -25,8 +26,8 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
         }
     }, []);
 
-    const debouncedPlay = useCallback(debounce(playVideo, 200), [playVideo]);
-    const debouncedPause = useCallback(debounce(pauseVideo, 200), [pauseVideo]);
+    const debouncedPlay = useCallback(debounce(playVideo, 500), [playVideo]);
+    const debouncedPause = useCallback(debounce(pauseVideo, 500), [pauseVideo]);
 
     useEffect(() => {
         if (videoUrl && !thumbnailUrl) {
@@ -78,7 +79,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
             sx={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: 300,
+                // maxWidth: 300,
                 aspectRatio: aspectRatio,
                 cursor: 'pointer',
                 margin: 'auto',
@@ -136,24 +137,26 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
                     transition: 'opacity 0.3s ease',
                 }}
             />
-            <Box sx={
-                {
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    zIndex: 10,
-                    display: isViewed ? 'flex' : 'none',
-                    justifyContent: 'center',
-                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                    alignItems: 'center',
-                }
-            }>
-                <Typography color={"#fff"}>
-                    Đã Xem
-                </Typography>
-            </Box>
+            {!isHovered &&
+                <Box sx={
+                    {
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        zIndex: 2,
+                        display: isViewed ? 'flex' : 'none',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        alignItems: 'center',
+                    }
+                }>
+                    <Typography color={"#fff"}>
+                        Đã Xem
+                    </Typography>
+                </Box>
+            }
             <Box sx={{
                 display: 'flex',
                 position: 'absolute',
@@ -176,7 +179,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
                     }}
                 >
                     <Play size={12} strokeWidth={4} /> {" "}
-                    {views}
+                    <LargeNumberDisplay number={views * 12313} />
                 </Typography>
                 <Typography
                     variant="subtitle1"
@@ -192,7 +195,7 @@ const VideoPreview = ({ videoUrl, thumbnailUrl, views, likes, isViewed, onThumbn
                     }}
                 >
                     <Heart size={12} strokeWidth={4} /> {" "}
-                    {likes}
+                    <LargeNumberDisplay number={likes * 12313} />
                 </Typography>
             </Box>
             <canvas ref={canvasRef} style={{ display: 'none' }} />

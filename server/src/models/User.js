@@ -22,6 +22,6 @@ userSchema.virtual('following', {
   foreignField: 'follower'
 });
 
-userSchema.index({username: 1, email: 1});
+userSchema.index({ username: 'text', email: 'text' });
 
 export default mongoose.model('User', userSchema);

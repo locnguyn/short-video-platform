@@ -12,6 +12,7 @@ import pubsub from './pubsub.js';
 import messageService from '../services/messageService.js';
 import conversationService from '../services/conversationService.js';
 import notificationService from '../services/notificationService.js';
+import searchService from '../services/searchService.js';
 
 
 const resolvers = {
@@ -98,7 +99,10 @@ const resolvers = {
             if (tokenError) throw new Error(tokenError);
             if (!user) throw new Error('You must be logged in to get notifications');
             return notificationService.getUserNotifications(user.id);
-        }
+        },
+        search: async (_, { query, page, limit }) => {
+            return searchService.search(query, page, limit);
+        },
     },
     Mutation: {
         registerUser: async (_, { username, email, password, avatarFile }) => {

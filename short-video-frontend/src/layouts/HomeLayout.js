@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, Container, Grid, useMediaQuery, useTheme } from "@mui/material";
+import { Container, Grid, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from 'react-router-dom';
 import CommentList from '../components/CommentList';
 import CommentContext from '../contexts/commentContext'
@@ -15,7 +15,7 @@ const HomeLayout = () => {
     return (
         <CommentContext.Provider value={{ showCommentVideoId: setVideoId, setShowComments: setIsShowComments }}>
             <Container maxWidth="full" sx={{
-                // mr: -3
+                // mr: -3.5
             }} disableGutters={isSmallScreen}>
             <Grid container spacing={2}>
                 <Grid item xs={1} md={2} lg={2}
@@ -35,9 +35,10 @@ const HomeLayout = () => {
                 >
                     <Outlet />
                 </Grid>
-                <Grid item xs={0} md={isShowComments ? 3 : 2}
+                <Grid item xs={1} md={isShowComments ? 3 : 2}
                     sx={{
-                        // mr: 1
+                        display: { xs: 'none', md: 'block' },
+                        overflow: 'hidden'
                     }}
                 >
                     {isShowComments && videoId && <CommentList videoId={videoId} showCommentVideoId={setVideoId} setShowComments={setIsShowComments} />}
