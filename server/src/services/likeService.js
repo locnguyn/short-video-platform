@@ -1,4 +1,5 @@
 import models from "../models/index.js";
+import logger from '../utils/logger.js';
 
 const likeVideo = async (videoId, userId) => {
     try {
@@ -19,7 +20,7 @@ const likeVideo = async (videoId, userId) => {
         });
         return true;
     } catch (error) {
-        console.error("error like video", error);
+        logger.error("error like video", error);
         return false;
     }
 }
@@ -55,7 +56,7 @@ const likeComment = async (userId, commentId) => {
         });
         return true;
     } catch (error) {
-        console.error("error like comment", error);
+        logger.error("error like comment", error);
         return false;
     }
 }

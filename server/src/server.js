@@ -1,4 +1,5 @@
 import express from 'express';
+import logger from './utils/logger.js';
 import { ApolloServer } from 'apollo-server-express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -31,7 +32,7 @@ async function startServer() {
 
   const serverCleanup = useServer({
     schema,
-    context: async (ctx, msg, args) => {
+    context: async (ctx, _msg, _args) => {
       const token = ctx.connectionParams?.authorization || '';
       let user = null;
       let tokenError = null;
@@ -53,15 +54,24 @@ async function startServer() {
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use(morgan('combined'));
   app.use(graphqlUploadExpress());
+  // Danh sách origin được phép, cấu hình qua biến môi trường CORS_ORIGINS
+  // (phân tách bằng dấu phẩy). Không dùng '*' vì kết hợp với credentials: true
+  // là không hợp lệ theo spec CORS và trình duyệt sẽ chặn request.
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.use(cors({
-    origin: '*',
+    origin(origin, callback) {
+      // Cho phép request không có origin (curl, health check, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin không được phép bởi CORS: ${origin}`));
+    },
     credentials: true
   }));
-
-  app.use((err, req, res, next) => {
-    console.error('Express error:', err);
-    res.status(500).send('Something went wrong');
-  });
 
   const server = new ApolloServer({
     schema,
@@ -106,35 +116,40 @@ async function startServer() {
     cors: false, // Disable Apollo Server's default CORS settings
   });
 
+  // Error handler PHẢI đặt sau tất cả middleware/route, nếu không Express sẽ
+  // không bao giờ gọi tới nó.
+  app.use((err, req, res, next) => {
+    logger.error('Express error:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    res.status(err.status || 500).json({
+      error: process.env.NODE_ENV === 'production'
+        ? 'Something went wrong'
+        : err.message,
+    });
+  });
+
   await mongoose.connect(process.env.MONGODB_URI);
-
-  // const categories = [
-  //   { name: "Action", description: "Fast-paced and exciting videos" },
-  //   { name: "Comedy", description: "Humorous and entertaining content" },
-  //   { name: "Education", description: "Informative and instructional videos" },
-  //   { name: "Music", description: "Music videos and performances" },
-  //   { name: "Gaming", description: "Video game playthroughs and reviews" }
-  // ];
-
-  // // Function to insert categories
-  // async function insertCategories() {
-  //   try {
-  //     const result = await models.Category.insertMany(categories);
-  //     console.log(`${result.length} categories inserted successfully`);
-  //   } catch (error) {
-  //     console.error("Error inserting categories:", error);
-  //   } finally {
-  //     mongoose.connection.close();
-  //   }
-  // }
-
-  // // Run the insertion
-  // insertCategories();
 
   const PORT = process.env.PORT || 4000;
   httpServer.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}${server.graphqlPath}`);
+    logger.info(`Server running on http://localhost:${PORT}${server.graphqlPath}`);
   });
 }
 
-startServer();
+// Fail fast: thiếu biến môi trường bắt buộc thì dừng ngay thay vì lỗi mơ hồ lúc runtime.
+const REQUIRED_ENV = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnv = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  logger.error(
+    `Thiếu biến môi trường bắt buộc: ${missingEnv.join(', ')}. ` +
+    'Xem file .env.example để biết cách cấu hình.'
+  );
+  process.exit(1);
+}
+
+startServer().catch((error) => {
+  logger.error('Không thể khởi động server:', error);
+  process.exit(1);
+});

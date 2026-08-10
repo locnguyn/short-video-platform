@@ -2,11 +2,11 @@ import models from "../models/index.js"
 
 
 const getCategories = async () => {
-    return await models.Category.find();
+    return models.Category.find();
 }
 
 const getCategory = async (categoryId) => {
-    return await models.Category.findById(categoryId);
+    return models.Category.findById(categoryId);
 }
 
 export default {

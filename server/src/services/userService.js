@@ -1,11 +1,11 @@
 import models from "../models/index.js";
+import logger from '../utils/logger.js';
 import { createToken } from "../utils/jwtTokenUtils.js";
 import bcrypt from 'bcryptjs'
 import uploadService from "./uploadService.js";
 import { isValidObjectId } from "mongoose";
 
-const getUser = async (userId, viewerId) => {
-    console.log(userId);
+const getUser = async (userId, _viewerId) => {
     try {
         let user;
         user = await models.User.findOne({ username: userId });
@@ -14,12 +14,11 @@ const getUser = async (userId, viewerId) => {
         }
         user = await models.User.findById(userId);
         if (!user) {
-            console.log('User not found for id:', userId);
             throw new Error('User not found');
         }
         return user;
     } catch (error) {
-        console.error('Error in getUser:', error);
+        logger.error('Error in getUser:', error);
         throw error;
     }
 }
@@ -41,10 +40,10 @@ const registerUser = async (username, email, password, profilePicture) => {
             try {
                 uploadService.deleteFromS3(uploadedFileLocation);
             } catch (deleteError) {
-                console.error("Error deleting uploaded file from S3: ", deleteError);
+                logger.error("Error deleting uploaded file from S3: ", deleteError);
             }
         }
-        console.error("Error in registerUser:", error);
+        logger.error("Error in registerUser:", error);
         throw new Error(error.message || "An error occurred during registration");
     }
 }
@@ -67,7 +66,7 @@ const loginUser = async (email, password) => {
         const token = createToken(user);
         return { token, user };
     } catch (error) {
-        console.error("Error in loginUser:", error);
+        logger.error("Error in loginUser:", error);
         throw new Error(error.message || "An error occurred during login");
     }
 }
@@ -79,7 +78,7 @@ const getUsersByIds = async (userIds) => {
 
         return users;
     } catch (error) {
-        console.error('Error in getUsersByIds:', error);
+        logger.error('Error in getUsersByIds:', error);
         throw new Error('Failed to fetch users');
     }
 };
@@ -104,13 +103,13 @@ const getUserById = async (userIdInput) => {
         }
         return user;
     } catch (error) {
-        console.error('Failed to get user:', error);
+        logger.error('Failed to get user:', error);
         throw error;
     }
 };
 
 const getFollowers = async (userId) => {
-    return await models.Follow.find({
+    return models.Follow.find({
         following: userId
     });
 };

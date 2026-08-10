@@ -63,7 +63,7 @@ const markMessageAsRead = async (messageId, userId) => {
 };
 
 const getLastMessage = async (conversationId) => {
-    return await models.Message.findOne({ conversation: conversationId })
+    return models.Message.findOne({ conversation: conversationId })
         .sort({ createdAt: -1 });
 };
 

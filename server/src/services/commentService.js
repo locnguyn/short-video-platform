@@ -1,4 +1,5 @@
 import models from "../models/index.js";
+import logger from '../utils/logger.js';
 
 const addComment = async (videoId, content, parentCommentId, userId) => {
     const MAX_DEPTH = 3;
@@ -48,17 +49,17 @@ const getVideoComments = async (videoId, page, limit) => {
             .limit(limit);
         return comments;
     } catch (err) {
-        console.error("Error getting video comments", err);
+        logger.error("Error getting video comments", err);
         throw new Error("An error occurred while getting video comments");
     };
 };
 
 const getChildrenComments = async (commentId) => {
-    return await models.Comment.find({parentCommentId: commentId});
+    return models.Comment.find({parentCommentId: commentId});
 };
 
 const getComment = async (commentId) => {
-    return await models.Comment.findById(commentId);
+    return models.Comment.findById(commentId);
 };
 
 const isLiked = async (userId, commentId) => {

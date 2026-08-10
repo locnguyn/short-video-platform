@@ -1,4 +1,5 @@
 import models from "../models/index.js"
+import logger from '../utils/logger.js';
 
 const viewVideo = async (userId, videoId) => {
     try {
@@ -26,7 +27,7 @@ const viewVideo = async (userId, videoId) => {
         });
         return true;
     } catch (error) {
-        console.error("Error viewing video", error);
+        logger.error("Error viewing video", error);
         return false;
     }
 }

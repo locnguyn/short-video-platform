@@ -1,4 +1,5 @@
 import models from "../models/index.js";
+import logger from '../utils/logger.js';
 
 
 const saveVideo = async (userId, videoId) => {
@@ -24,7 +25,7 @@ const saveVideo = async (userId, videoId) => {
 
         return true;
     } catch (error) {
-        console.error("Failed to save video", error);
+        logger.error("Failed to save video", error);
         throw new Error("An error occurred while saving video");
     }
 }
@@ -45,7 +46,7 @@ const unsaveVideo = async (userId, videoId) => {
         })
         return true;
     } catch (error) {
-        console.error("Failed to unsave video", error);
+        logger.error("Failed to unsave video", error);
         throw new Error("An error occurred while unsaving video");
     }
 }

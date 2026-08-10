@@ -1,8 +1,10 @@
+import mongoose from "mongoose";
+import logger from '../utils/logger.js';
 import models from "../models/index.js";
 import uploadService from "./uploadService.js";
 
 const getVideo = async (id) => {
-  return await models.Video.findById(id);
+  return models.Video.findById(id);
 };
 
 const isSaved = async (userId, videoId) => {
@@ -148,7 +150,7 @@ const getRecommendedVideos = async (userId, limit = 10) => {
 
     return recommendedVideos;
   } catch (error) {
-    console.error('Error getting recommended videos:', error);
+    logger.error('Error getting recommended videos:', error);
     throw new Error('An error occurred while fetching recommended videos');
   }
 };
@@ -173,7 +175,6 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
       category
     });
 
-    console.log(video);
 
     video.save();
     return video;
@@ -182,17 +183,17 @@ const uploadVideo = async (userId, title, videoFile, thumbnailFile, category, ta
       try {
         uploadService.deleteFromS3(uploadedVideoLocation);
       } catch (deleteError) {
-        console.error('Could not delete video from S3', deleteError);
+        logger.error('Could not delete video from S3', deleteError);
       };
     }
     if (uploadedThumbnailLocation) {
       try {
         uploadService.deleteFromS3(uploadedThumbnailLocation);
       } catch (deleteError) {
-        console.error('Could not delete video from S3', deleteError);
+        logger.error('Could not delete video from S3', deleteError);
       };
     }
-    console.error("Error in upload video:", error);
+    logger.error("Error in upload video:", error);
     throw new Error(error.message || "An error occurred during upload video");
   };
 };
@@ -214,7 +215,7 @@ const getUserVideos = async (id, page, limit) => {
 
     return videos;
   } catch (error) {
-    console.error('Error fetching user videos:', error);
+    logger.error('Error fetching user videos:', error);
     throw new Error('An error occurred while fetching videos');
   }
 };
@@ -227,7 +228,7 @@ const getNextUserVideo = async (currentVideoCreatedAt, userId) => {
     }).sort({ createdAt: -1 });
     return video;
   } catch (error) {
-    console.error('Error get next user video:', error);
+    logger.error('Error get next user video:', error);
     throw new Error('An error occurred while fetching next user video');
   }
 };
@@ -242,40 +243,88 @@ const getPrevUserVideo = async (currentVideoCreatedAt, userId) => {
     });
     return video;
   } catch (error) {
-    console.error('Error get previous user video:', error);
+    logger.error('Error get previous user video:', error);
     throw new Error('An error occurred while fetching previous user video');
   }
 };
 
+/**
+ * Chuyển id dạng string sang ObjectId. Cần thiết cho aggregate() vì aggregation
+ * pipeline không được mongoose tự động cast theo schema như find()/findOne().
+ */
+const toObjectId = (id) =>
+  id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(id);
+
+/**
+ * Lấy các video (mới nhất trước) của một nhóm tác giả mà `userObjectId` CHƯA xem.
+ *
+ * Trước đây hàm gọi View.find({ user }) rồi truyền toàn bộ id đã xem vào $nin.
+ * Cách đó tải không giới hạn số bản ghi về memory và làm query phình to theo
+ * thời gian sử dụng. Ở đây việc loại video đã xem được đẩy xuống MongoDB bằng
+ * $lookup có $limit 1, nên chi phí không phụ thuộc vào lịch sử xem của user.
+ */
+const findUnviewedVideosByUsers = async (userObjectId, authorIds, limit) => {
+  return models.Video.aggregate([
+    { $match: { user: { $in: authorIds } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $lookup: {
+        from: models.View.collection.name,
+        let: { videoId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$video', '$$videoId'] },
+                  { $eq: ['$user', userObjectId] }
+                ]
+              }
+            }
+          },
+          { $limit: 1 },
+          { $project: { _id: 1 } }
+        ],
+        as: 'viewedByMe'
+      }
+    },
+    { $match: { viewedByMe: { $size: 0 } } },
+    { $project: { viewedByMe: 0 } },
+    { $limit: limit }
+  ]);
+};
+
 const getFollowingVideos = async (userId, limit = 10) => {
   try {
-    const following = await models.Follow.find({ follower: userId }).select('following');
+    const userObjectId = toObjectId(userId);
+
+    const following = await models.Follow.find({ follower: userObjectId })
+      .select('following')
+      .lean();
     const followingIds = following.map(f => f.following);
+    if (followingIds.length === 0) {
+      return [];
+    }
 
-    const viewedVideos = await models.View.find({ user: userId }).select('video');
-    const viewedVideoIds = viewedVideos.map(v => v.video);
-
-    const videos = await models.Video.find({
-      user: { $in: followingIds },
-      _id: { $nin: viewedVideoIds }
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit);
-
-    return videos;
+    return findUnviewedVideosByUsers(userObjectId, followingIds, limit);
   } catch (error) {
-    console.error('Error fetching following videos:', error);
+    logger.error('Error fetching following videos:', error);
     throw new Error('An error occurred while fetching following videos');
   }
 };
 
 const getFriendVideos = async (userId, limit = 10) => {
   try {
+    // aggregate() KHÔNG tự cast string sang ObjectId như find(), nên phải cast tay,
+    // nếu không $match sẽ không khớp bản ghi nào.
+    const userObjectId = toObjectId(userId);
+
     const friendIds = await models.Follow.aggregate([
-      { $match: { follower: userId } },
+      { $match: { follower: userObjectId } },
       {
         $lookup: {
-          from: 'follow',
+          // Lấy tên collection từ model để tránh hardcode sai ('follow' vs 'follows').
+          from: models.Follow.collection.name,
           let: { followingId: '$following' },
           pipeline: [
             {
@@ -283,11 +332,13 @@ const getFriendVideos = async (userId, limit = 10) => {
                 $expr: {
                   $and: [
                     { $eq: ['$follower', '$$followingId'] },
-                    { $eq: ['$following', userId] }
+                    { $eq: ['$following', userObjectId] }
                   ]
                 }
               }
-            }
+            },
+            { $limit: 1 },
+            { $project: { _id: 1 } }
           ],
           as: 'mutualFollow'
         }
@@ -297,21 +348,13 @@ const getFriendVideos = async (userId, limit = 10) => {
     ]);
 
     const mutualFriendIds = friendIds.map(friend => friend.friendId);
-    console.log(mutualFriendIds)
+    if (mutualFriendIds.length === 0) {
+      return [];
+    }
 
-    const viewedVideos = await models.View.find({ user: userId }).select('video');
-    const viewedVideoIds = viewedVideos.map(v => v.video);
-
-    const videos = await models.Video.find({
-      user: { $in: mutualFriendIds },
-      _id: { $nin: viewedVideoIds }
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit);
-
-    return videos;
+    return findUnviewedVideosByUsers(userObjectId, mutualFriendIds, limit);
   } catch (error) {
-    console.error('Error fetching friend videos:', error);
+    logger.error('Error fetching friend videos:', error);
     throw new Error('An error occurred while fetching friend videos');
   }
 };

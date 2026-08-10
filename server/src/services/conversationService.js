@@ -2,7 +2,7 @@ import models from "../models/index.js"
 
 
 const getUserConversations = async (userId) => {
-    return await models.Conversation.find({
+    return models.Conversation.find({
         participants: userId
     }).sort({
         updatedAt: -1
@@ -30,7 +30,7 @@ const getOrCreateDirectConversation = async (userId1, userId2) => {
 };
 
 const searchConversations = async (userId, searchTerm) => {
-    return await models.Conversation.find({
+    return models.Conversation.find({
         participants: userId,
         $or: [
             { name: { $regex: searchTerm, $options: 'i' } },
@@ -40,7 +40,7 @@ const searchConversations = async (userId, searchTerm) => {
 };
 
 const getConversationMessages = async (conversationId, limit = 50, skip = 0) => {
-    return await models.Message.find({ conversation: conversationId })
+    return models.Message.find({ conversation: conversationId })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -48,7 +48,7 @@ const getConversationMessages = async (conversationId, limit = 50, skip = 0) => 
 
 
 
-const getConversation = async (conversationId, userId) => {
+const getConversation = async (conversationId, _userId) => {
     const conversation = await models.Conversation.findById(conversationId);
 
     if (!conversation) {
@@ -63,7 +63,6 @@ const getConversation = async (conversationId, userId) => {
 };
 
 const createConversation = async (creatorId, participantIds, type, name) => {
-    console.log(creatorId, participantIds, "________123__________________");
     const allParticipants = [...new Set([creatorId, ...participantIds])];
 
     if (type === 'direct' && allParticipants.length !== 2) {

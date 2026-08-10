@@ -9,6 +9,7 @@ import categoryService from '../services/categoryService.js';
 import saveService from '../services/saveService.js';
 import viewService from '../services/viewService.js';
 import pubsub from './pubsub.js';
+import { requireAuth } from '../utils/requireAuth.js';
 import messageService from '../services/messageService.js';
 import conversationService from '../services/conversationService.js';
 import notificationService from '../services/notificationService.js';
@@ -22,15 +23,10 @@ const resolvers = {
             return userService.getUser(id, user.id);
         },
         verifyToken: async (_, __, context) => {
-            if (!context.user) {
-                throw new Error('Token expired!');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return userService.getUser(context.user.id, context.user.id);
         },
-        getUserVideos: async (_, { id, page, limit }, { user }) => {
+        getUserVideos: async (_, { id, page, limit }, { user: _user }) => {
             return videoService.getUserVideos(id, page, limit);
         },
         getNextUserVideo: async (_, { currentVideoCreatedAt, userId }) => {
@@ -41,63 +37,38 @@ const resolvers = {
             return videoService.getVideo(id);
         },
         getRecommendedVideos: async (_, { limit }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to get recommended videos');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return videoService.getRecommendedVideos(context.user.id, limit);
         },
         getFollowingVideos: async (_, { limit }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to get following videos');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return videoService.getFollowingVideos(context.user.id, limit);
         },
         getFriendVideos: async (_, { limit }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to get following videos');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
-            console.log('getFriendVideos_________________________' + context.user.id)
+            requireAuth(context);
             return videoService.getFriendVideos(context.user.id, limit);
         },
-        getCategories: async (_, __, { user, tokenError }) => {
-            if (tokenError) {
-                throw new Error(tokenError);
-            }
-            if (!user) {
-                throw new Error('Không được phép truy cập');
-            }
+        getCategories: async (_, __, context) => {
+            requireAuth(context);
             return categoryService.getCategories();
         },
-        getVideoComments: async (_, { videoId, page, limit }, context) => {
+        getVideoComments: async (_, { videoId, page, limit }, _context) => {
             return commentService.getVideoComments(videoId, page, limit);
         },
-        getUserConversations: async (_, __, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to get conversations');
+        getUserConversations: async (_, __, context) => {
+            const user = requireAuth(context);
             return conversationService.getUserConversations(user.id);
         },
-        getConversation: async (_, { id }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to get a conversation');
+        getConversation: async (_, { id }, context) => {
+            const user = requireAuth(context);
             return conversationService.getConversation(id, user.id);
         },
-        getConversationMessages: async (_, { conversationId, page, limit }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to get messages');
+        getConversationMessages: async (_, { conversationId, page, limit }, context) => {
+            const user = requireAuth(context);
             return messageService.getConversationMessages(conversationId, user.id, page, limit);
         },
-        notifications: async (_, __, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to get notifications');
+        notifications: async (_, __, context) => {
+            const user = requireAuth(context);
             return notificationService.getUserNotifications(user.id);
         },
         search: async (_, { query, page, limit }) => {
@@ -112,18 +83,13 @@ const resolvers = {
             return userService.loginUser(email, password);
         },
         uploadVideo: async (_, { title, videoFile, thumbnailFile, category, tags }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to upload a video');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             const video = await videoService.uploadVideo(context.user.id, title, videoFile, thumbnailFile, category, tags);
             if (video) {
                 const followers = await userService.getFollowers(context.user.id);
 
                 for (const follower of followers) {
-                    const {notification, user} = await notificationService.createVideoUploadNotification(video.id, context.user.id, follower.follower.toString());
+                    const { notification } = await notificationService.createVideoUploadNotification(video.id, context.user.id, follower.follower.toString());
 
                     if (notification) {
                         pubsub.publish(`NEW_NOTIFICATION_${follower.follower.toString()}`, {
@@ -135,12 +101,7 @@ const resolvers = {
             return video;
         },
         likeVideo: async (_, { targetId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to like a video');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             const res = likeService.likeVideo(targetId, context.user.id);
             if (res) {
                 const t = await notificationService.createLikeNotification(targetId, context.user);
@@ -152,30 +113,15 @@ const resolvers = {
             return res;
         },
         unlikeVideo: async (_, { targetId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to like a video');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return likeService.unlikeVideo(targetId, context.user.id);
         },
         viewVideo: async (_, { videoId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to like a video');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return viewService.viewVideo(context.user.id, videoId);
         },
         likeComment: async (_, { targetId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to like comment');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             const res = likeService.likeComment(context.user.id, targetId);
             if (res) {
                 const { notification, user } = await notificationService.createLikeCommentNotification(targetId, context.user);
@@ -186,12 +132,7 @@ const resolvers = {
             return res;
         },
         unlikeComment: async (_, { targetId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to unlike comment');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return likeService.unlikeComment(context.user.id, targetId);
         },
         addComment: async (_, { videoId, content, parentCommentId }, context) => {
@@ -229,12 +170,7 @@ const resolvers = {
             return newComment;
         },
         followUser: async (_, { followingId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to follow this user!');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             const res = followService.followUser(context.user.id, followingId);
             if(res){
                 const { notification, user } = await notificationService.createNewFollowerNotification(context.user.id, followingId);
@@ -247,58 +183,38 @@ const resolvers = {
             return res;
         },
         unfollowUser: async (_, { followingId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to unfollow this user!');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return followService.unfollowUser(context.user.id, followingId);
         },
         saveVideo: async (_, { videoId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to save this video!');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return saveService.saveVideo(context.user.id, videoId);
         },
         unsaveVideo: async (_, { videoId }, context) => {
-            if (!context.user) {
-                throw new Error('You must be logged in to unsave this video!');
-            }
-            if (context.tokenError) {
-                throw new Error(tokenError);
-            }
+            requireAuth(context);
             return saveService.unsaveVideo(context.user.id, videoId);
         },
-        createConversation: async (_, { participantIds, type, name }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to create a conversation');
+        createConversation: async (_, { participantIds, type, name }, context) => {
+            const user = requireAuth(context);
             return conversationService.createConversation(user.id, participantIds, type, name);
         },
-        sendMessage: async (_, { conversationId, content, contentType }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to send a message');
+        sendMessage: async (_, { conversationId, content, contentType }, context) => {
+            const user = requireAuth(context);
             const message = await messageService.sendMessage(user.id, conversationId, content, contentType);
             pubsub.publish(`NEW_MESSAGE_${conversationId}`, { newMessage: message, conversationId });
             return message;
         },
-        markMessageAsRead: async (_, { messageId }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to mark a message as read');
+        markMessageAsRead: async (_, { messageId }, context) => {
+            const user = requireAuth(context);
             return messageService.markMessageAsRead(messageId, user.id);
         },
-        getOrCreateDirectConversation: async (_, { userId }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to create a conversation');
+        getOrCreateDirectConversation: async (_, { userId }, context) => {
+            const user = requireAuth(context);
             const u = await userService.getUser(userId);
             return conversationService.getOrCreateDirectConversation(user.id, u._id);
         },
-        markNotificationAsRead: async (_, { notificationId }, { user, tokenError }) => {
-            if (tokenError) throw new Error(tokenError);
-            if (!user) throw new Error('You must be logged in to mark this notification as read');
+        markNotificationAsRead: async (_, { notificationId }, context) => {
+            const user = requireAuth(context);
             return notificationService.markNotificationAsRead(notificationId, user.id);
         },
     },
@@ -316,7 +232,7 @@ const resolvers = {
     },
     Video: {
         user: async (parent, _) => {
-            return await models.User.findById(parent.user);
+            return models.User.findById(parent.user);
         },
         isViewed: async (parent, _, context) => {
             if (!context.user) {
@@ -361,18 +277,18 @@ const resolvers = {
         },
     },
     Conversation: {
-        participants: async (parent, _, { user }) => {
+        participants: async (parent, _, { user: _user }) => {
             return userService.getUsersByIds(parent.participants);
         },
-        lastMessage: async (parent, _, { user }) => {
+        lastMessage: async (parent, _, { user: _user }) => {
             return messageService.getLastMessage(parent.id);
         },
     },
     Message: {
-        sender: async (parent, _, { user }) => {
+        sender: async (parent, _, { user: _user }) => {
             return userService.getUser(parent.sender);
         },
-        readBy: async (parent, _, { user }) => {
+        readBy: async (parent, _, { user: _user }) => {
             return userService.getUsersByIds(parent.readBy);
         },
     },
@@ -392,24 +308,23 @@ const resolvers = {
     },
     Subscription: {
         commentAdded: {
-            subscribe: (_, { videoId }, context) => {
-                console.log('Subscription ' + videoId);
+            subscribe: (_, { videoId }, _context) => {
                 return pubsub.asyncIterator(`COMMENT_ADDED_${videoId}`);
             },
         },
         newMessage: {
-            subscribe: (_, { conversationId }, context) => {
+            subscribe: (_, { conversationId }, _context) => {
                 return pubsub.asyncIterator(`NEW_MESSAGE_${conversationId}`);
             },
         },
         conversationUpdated: {
-            subscribe: (_, { conversationId }, context) => {
+            subscribe: (_, { conversationId }, _context) => {
                 return pubsub.asyncIterator(`CONVERSATION_UPDATED_${conversationId}`);
             },
         },
         newNotification: {
-            subscribe: (_, __, { user, tokenError }) => {
-                if (!user) throw new Error("Authentication required");
+            subscribe: (_, __, context) => {
+                const user = requireAuth(context);
                 return pubsub.asyncIterator(`NEW_NOTIFICATION_${user.id}`);
             },
         },

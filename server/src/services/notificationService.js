@@ -5,7 +5,7 @@ import videoService from "./videoService.js";
 
 
 const getUserNotifications = async (userId) => {
-    return await models.Notification.find({ user: userId }).sort({
+    return models.Notification.find({ user: userId }).sort({
         createdAt: -1
     }).limit(20);
 };

@@ -1,4 +1,5 @@
 import models from "../models/index.js";
+import logger from '../utils/logger.js';
 
 const followUser = async (followerId, followingId) => {
 
@@ -29,7 +30,7 @@ const followUser = async (followerId, followingId) => {
 
         return true;
     } catch (error) {
-        console.error("Error while following user", error);
+        logger.error("Error while following user", error);
         throw new Error("Failed to follow user");
     }
 };
@@ -53,17 +54,8 @@ const unfollowUser = async (followerId, followingId) => {
         });
         return true;
     } catch (error) {
-        console.error("Error while unfollowing user", error);
+        logger.error("Error while unfollowing user", error);
         throw new Error("Failed to unfollow user");
-    }
-}
-
-const getFollowers = async (userId, first, after) => {
-    try {
-        const query = { following: userId };
-    } catch (error) {
-        console.error("Error while getting followers", error);
-        throw new Error("Failed to get followers");
     }
 }
 
